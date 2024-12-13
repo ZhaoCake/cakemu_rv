@@ -1,11 +1,12 @@
-pub mod register;
 use crate::debugger::Debugger;
-use crate::isa; // BUG: 这玩意儿怎么回事啊，怎么导都导不进
 use crate::loader::Loader;
 use crate::memory::Memory;
+use crate::register::RegisterFile;
+use crate::isa::inst::decode_instruction;
+
 
 pub struct Cpu {
-    isa: isa::isa::Isa,
+    registers: RegisterFile,
     pc: u32,
     memory: Memory,
     debugger: Debugger,
@@ -14,7 +15,7 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(memory_size: usize) -> Self {
         Self {
-            isa: isa::isa::Isa::new(),
+            registers: RegisterFile::new(),
             pc: 0,
             memory: Memory::new(memory_size),
             debugger: Debugger::new(),
@@ -22,21 +23,9 @@ impl Cpu {
     }
 
     pub fn step(&mut self) -> Result<(), &'static str> {
-        // 获取当前指令
-        let instruction = self.fetch()?;
-
-        // 执行指令前的调试信息
-        self.debugger
-            .trace_instruction(self.pc, instruction, "TODO: add disassembly");
-
-        // 执行指令
-        self.execute(instruction)?;
-
-        // 单步执行等待
-        self.debugger.wait_for_next();
-
-        // 更新 PC
-        self.pc = self.pc.wrapping_add(4);
+        let raw_inst = self.fetch()?;
+        let instruction = decode_instruction(raw_inst);
+        self.pc = (instruction.execute)(&instruction.operands, self)?;
         Ok(())
     }
 
@@ -44,8 +33,13 @@ impl Cpu {
         self.memory.vread(self.pc as usize, 4)
     }
 
-    fn execute(&mut self, instruction: u32) -> Result<(), &'static str> {
-        Ok(())
+    // 寄存器访问方法
+    pub fn read_reg(&self, index: usize) -> u32 {
+        self.registers.read(index)
+    }
+
+    pub fn write_reg(&mut self, index: usize, value: u32) {
+        self.registers.write(index, value)
     }
 
     // PC 相关操作
@@ -116,6 +110,6 @@ impl Cpu {
     pub fn show_registers(&self) {
         println!("=== Register State ===");
         println!("PC: 0x{:08x}", self.pc);
-        self.isa.regs.dump();
+        self.registers.dump();
     }
 }

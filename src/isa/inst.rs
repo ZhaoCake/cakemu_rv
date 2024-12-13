@@ -1,7 +1,3 @@
-use crate::isa::isa::Isa;
-
-// RISC-V 指令模块
-#[derive(Debug, Clone, Copy)]
 pub enum InstType {
     R, I, S, B, U, J
 }
@@ -45,174 +41,28 @@ impl Operands {
     }
 }
 
+// 定义指令执行函数类型
+pub type InstructionFn = fn(&Operands, &mut crate::cpu::Cpu) -> Result<u32, &'static str>;
+
+// 定义指令结构体
 #[derive(Debug)]
-pub enum Instruction {
-    // RV32I Base Instructions
-    Lui(Operands),
-    Auipc(Operands),
-    Jal(Operands),
-    Jalr(Operands),
-    Beq(Operands),
-    Bne(Operands),
-    Blt(Operands),
-    Bge(Operands),
-    Bltu(Operands),
-    Bgeu(Operands),
-    Lb(Operands),
-    Lh(Operands),
-    Lw(Operands),
-    Lbu(Operands),
-    Lhu(Operands),
-    Sb(Operands),
-    Sh(Operands),
-    Sw(Operands),
-    Addi(Operands),
-    Slti(Operands),
-    Sltiu(Operands),
-    Xori(Operands),
-    Ori(Operands),
-    Andi(Operands),
-    Slli(Operands),
-    Srli(Operands),
-    Srai(Operands),
-    Add(Operands),
-    Sub(Operands),
-    Sll(Operands),
-    Slt(Operands),
-    Sltu(Operands),
-    Xor(Operands),
-    Srl(Operands),
-    Sra(Operands),
-    Or(Operands),
-    And(Operands),
+pub struct RiscvInstruction {
+    pub operands: Operands,
+    pub execute: InstructionFn,
 }
 
-impl Instruction {
-    pub fn decode(inst: u32) -> Result<Self, &'static str> {
-        let opcode = inst & 0x7f;
-        let funct3 = (inst >> 12) & 0x7;
-        let funct7 = (inst >> 25) & 0x7f;
+// 解码函数
+pub fn decode_instruction(inst: u32) -> RiscvInstruction {
+    let opcode = inst & 0x7f;
+    let inst_type = InstType::I; // 假设为 I 类型，实际情况应根据 opcode 确定
 
-        match opcode {
-            0x37 => Ok(Self::Lui(Operands::decode(inst, InstType::U))),
-            0x17 => Ok(Self::Auipc(Operands::decode(inst, InstType::U))),
-            0x6f => Ok(Self::Jal(Operands::decode(inst, InstType::J))),
-            0x67 => {
-                match funct3 {
-                    0x0 => Ok(Self::Jalr(Operands::decode(inst, InstType::I))),
-                    _ => Err("Invalid funct3 for JALR"),
-                }
-            },
-            0x63 => {
-                let ops = Operands::decode(inst, InstType::B);
-                match funct3 {
-                    0x0 => Ok(Self::Beq(ops)),
-                    0x1 => Ok(Self::Bne(ops)),
-                    0x4 => Ok(Self::Blt(ops)),
-                    0x5 => Ok(Self::Bge(ops)),
-                    0x6 => Ok(Self::Bltu(ops)),
-                    0x7 => Ok(Self::Bgeu(ops)),
-                    _ => Err("Invalid funct3 for branch"),
-                }
-            },
-            0x03 => {
-                let ops = Operands::decode(inst, InstType::I);
-                match funct3 {
-                    0x0 => Ok(Self::Lb(ops)),
-                    0x1 => Ok(Self::Lh(ops)),
-                    0x2 => Ok(Self::Lw(ops)),
-                    0x4 => Ok(Self::Lbu(ops)),
-                    0x5 => Ok(Self::Lhu(ops)),
-                    _ => Err("Invalid funct3 for load"),
-                }
-            },
-            0x23 => {
-                let ops = Operands::decode(inst, InstType::S);
-                match funct3 {
-                    0x0 => Ok(Self::Sb(ops)),
-                    0x1 => Ok(Self::Sh(ops)),
-                    0x2 => Ok(Self::Sw(ops)),
-                    _ => Err("Invalid funct3 for store"),
-                }
-            },
-            0x13 => {
-                let ops = Operands::decode(inst, InstType::I);
-                match funct3 {
-                    0x0 => Ok(Self::Addi(ops)),
-                    0x2 => Ok(Self::Slti(ops)),
-                    0x3 => Ok(Self::Sltiu(ops)),
-                    0x4 => Ok(Self::Xori(ops)),
-                    0x6 => Ok(Self::Ori(ops)),
-                    0x7 => Ok(Self::Andi(ops)),
-                    0x1 => Ok(Self::Slli(ops)),
-                    0x5 => match funct7 {
-                        0x00 => Ok(Self::Srli(ops)),
-                        0x20 => Ok(Self::Srai(ops)),
-                        _ => Err("Invalid funct7 for shift right"),
-                    },
-                    _ => Err("Invalid funct3 for immediate arithmetic"),
-                }
-            },
-            0x33 => {
-                let ops = Operands::decode(inst, InstType::R);
-                match (funct3, funct7) {
-                    (0x0, 0x00) => Ok(Self::Add(ops)),
-                    (0x0, 0x20) => Ok(Self::Sub(ops)),
-                    (0x1, 0x00) => Ok(Self::Sll(ops)),
-                    (0x2, 0x00) => Ok(Self::Slt(ops)),
-                    (0x3, 0x00) => Ok(Self::Sltu(ops)),
-                    (0x4, 0x00) => Ok(Self::Xor(ops)),
-                    (0x5, 0x00) => Ok(Self::Srl(ops)),
-                    (0x5, 0x20) => Ok(Self::Sra(ops)),
-                    (0x6, 0x00) => Ok(Self::Or(ops)),
-                    (0x7, 0x00) => Ok(Self::And(ops)),
-                    _ => Err("Invalid funct3/funct7 for register arithmetic"),
-                }
-            },
-            _ => Err("Unknown opcode"),
-        }
-    }
-
-    pub fn execute(&self, isa: &mut Isa, pc: u32) -> Result<u32, &'static str> {
-        match self {
-            Self::Lui(op) => {
-                isa.regs.write(op.rd, op.imm as u32);
-                Ok(pc + 4)
-            },
-            // 算术指令
-            Self::Addi(op) => {
-                let result = (isa.regs.read(op.rs1) as i32).wrapping_add(op.imm as i32);
-                isa.regs.write(op.rd, result as u32);
-                Ok(pc + 4)
-            },
-            Self::Add(op) => {
-                let result = (isa.regs.read(op.rs1) as i32).wrapping_add(isa.regs.read(op.rs2) as i32);
-                isa.regs.write(op.rd, result as u32);
-                Ok(pc + 4)
-            },
-            Self::Sub(op) => {
-                let result = (isa.regs.read(op.rs1) as i32).wrapping_sub(isa.regs.read(op.rs2) as i32);
-                isa.regs.write(op.rd, result as u32);
-                Ok(pc + 4)
-            },
-
-            // 逻辑指令
-            Self::And(op) => {
-                let result = isa.regs.read(op.rs1) & isa.regs.read(op.rs2);
-                isa.regs.write(op.rd, result);
-                Ok(pc + 4)
-            },
-            Self::Or(op) => {
-                let result = isa.regs.read(op.rs1) | isa.regs.read(op.rs2);
-                isa.regs.write(op.rd, result);
-                Ok(pc + 4)
-            },
-            Self::Xor(op) => {
-                let result = isa.regs.read(op.rs1) ^ isa.regs.read(op.rs2);
-                isa.regs.write(op.rd, result);
-                Ok(pc + 4)
-            },
-            _ => Err("Instruction execution not yet implemented"),
-        }
+    let operands = Operands::decode(inst, inst_type);
+    match opcode {
+        0x13 => RiscvInstruction {
+            operands,
+            execute, // BUG: make it without cpu structure
+        },
+        // 其他指令...
+        _ => panic!("Unknown opcode"),
     }
 }

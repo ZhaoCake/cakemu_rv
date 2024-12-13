@@ -8,7 +8,7 @@ impl Loader {
         Self
     }
 
-    pub fn load_program(&self, memory: &mut crate::memory::Memory, filename: &str) -> std::io::Result<()> {
+    pub fn load_program(&self, _memory: &mut crate::memory::Memory, _filename: &str) -> std::io::Result<()> {
         // TODO: 实现程序加载逻辑
         Ok(())
     }

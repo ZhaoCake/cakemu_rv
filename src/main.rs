@@ -53,7 +53,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         match cpu.step() {
             Ok(()) => {
-                // 每执行一条指令后显示寄存器状态
                 cpu.show_registers();
             }
             Err(e) => {
