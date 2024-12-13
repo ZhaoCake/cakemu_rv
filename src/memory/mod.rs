@@ -9,7 +9,7 @@ impl Memory {
         }
     }
 
-    pub fn read(&self, addr: usize, len: usize) -> Result<u32, &'static str> {
+    pub fn pread(&self, addr: usize, len: usize) -> Result<u32, &'static str> {
         // 检查长度是否合法
         match len {
             1 | 2 | 4 => (),
@@ -34,7 +34,7 @@ impl Memory {
         Ok(value)
     }
 
-    pub fn write(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
+    pub fn pwrite(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
         // 检查长度是否合法
         match len {
             1 | 2 | 4 => (),
@@ -63,7 +63,7 @@ impl Memory {
         if addr + data.len() > self.data.len() {
             return Err("Memory write out of bounds");
         }
-        
+
         self.data[addr..addr + data.len()].copy_from_slice(data);
         Ok(())
     }
@@ -72,7 +72,17 @@ impl Memory {
         if addr + len > self.data.len() {
             return Err("Memory read out of bounds");
         }
-        
+
         Ok(&self.data[addr..addr + len])
+    }
+
+    // 上面知识物理读取 写入，下面是虚拟读取写入，外设读写也是调用下面这两个方法
+    pub fn vread(&self, addr: usize, len: usize) -> Result<u32, &'static str> {
+        // TODO: 范围判断
+        self.pread(addr, len)
+    }
+
+    pub fn vwrite(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
+        self.pwrite(addr, value, len)
     }
 }

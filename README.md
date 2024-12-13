@@ -83,3 +83,4 @@ builder.save("custom_program.bin")?;
 
 - [ ] RV32I 指令支持
 - [ ] 外设寻址空间挂载到总线
+- [ ] 

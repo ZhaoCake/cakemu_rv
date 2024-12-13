@@ -1,3 +1,5 @@
+use crate::isa::isa::Isa;
+
 // RISC-V 指令模块
 #[derive(Debug, Clone, Copy)]
 pub enum InstType {
@@ -171,13 +173,46 @@ impl Instruction {
         }
     }
 
-    pub fn execute(&self, isa: &mut super::Isa, pc: u64) -> Result<u64, &'static str> {
+    pub fn execute(&self, isa: &mut Isa, pc: u32) -> Result<u32, &'static str> {
         match self {
             Self::Lui(op) => {
                 isa.regs.write(op.rd, op.imm as u32);
                 Ok(pc + 4)
             },
-            _ => Err("指令尚未实现"),
+            // 算术指令
+            Self::Addi(op) => {
+                let result = (isa.regs.read(op.rs1) as i32).wrapping_add(op.imm as i32);
+                isa.regs.write(op.rd, result as u32);
+                Ok(pc + 4)
+            },
+            Self::Add(op) => {
+                let result = (isa.regs.read(op.rs1) as i32).wrapping_add(isa.regs.read(op.rs2) as i32);
+                isa.regs.write(op.rd, result as u32);
+                Ok(pc + 4)
+            },
+            Self::Sub(op) => {
+                let result = (isa.regs.read(op.rs1) as i32).wrapping_sub(isa.regs.read(op.rs2) as i32);
+                isa.regs.write(op.rd, result as u32);
+                Ok(pc + 4)
+            },
+
+            // 逻辑指令
+            Self::And(op) => {
+                let result = isa.regs.read(op.rs1) & isa.regs.read(op.rs2);
+                isa.regs.write(op.rd, result);
+                Ok(pc + 4)
+            },
+            Self::Or(op) => {
+                let result = isa.regs.read(op.rs1) | isa.regs.read(op.rs2);
+                isa.regs.write(op.rd, result);
+                Ok(pc + 4)
+            },
+            Self::Xor(op) => {
+                let result = isa.regs.read(op.rs1) ^ isa.regs.read(op.rs2);
+                isa.regs.write(op.rd, result);
+                Ok(pc + 4)
+            },
+            _ => Err("Instruction execution not yet implemented"),
         }
     }
 }

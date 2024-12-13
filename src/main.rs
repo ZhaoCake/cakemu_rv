@@ -1,8 +1,7 @@
 mod cpu;
-mod memory;
-mod bus;
-mod loader;
 mod debugger;
+mod loader;
+mod memory;
 
 use cpu::Cpu;
 use std::env;
@@ -23,10 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let program_file = &args[1];
-    
+
     // 创建 CPU 实例
     let mut cpu = Cpu::new(16 * 1024 * 1024);
-    
+
     // 处理命令行选项
     for arg in &args[2..] {
         match arg.as_str() {
@@ -40,16 +39,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     println!("RISC-V Emulator Starting...");
     println!("Loading program: {}", program_file);
-    
+
     // 加载程序
     cpu.load_program(program_file)?;
-    
+
     // 显示初始寄存器状态
     cpu.show_registers();
-    
+
     // 执行程序
     loop {
         match cpu.step() {

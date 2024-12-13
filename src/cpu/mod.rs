@@ -1,10 +1,11 @@
 pub mod register;
-use crate::memory::Memory;
-use crate::loader::Loader;
 use crate::debugger::Debugger;
+use crate::isa; // BUG: 这玩意儿怎么回事啊，怎么导都导不进
+use crate::loader::Loader;
+use crate::memory::Memory;
 
 pub struct Cpu {
-    registers: register::RegisterFile,
+    isa: isa::isa::Isa,
     pc: u32,
     memory: Memory,
     debugger: Debugger,
@@ -13,7 +14,7 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(memory_size: usize) -> Self {
         Self {
-            registers: register::RegisterFile::new(),
+            isa: isa::isa::Isa::new(),
             pc: 0,
             memory: Memory::new(memory_size),
             debugger: Debugger::new(),
@@ -23,27 +24,27 @@ impl Cpu {
     pub fn step(&mut self) -> Result<(), &'static str> {
         // 获取当前指令
         let instruction = self.fetch()?;
-        
+
         // 执行指令前的调试信息
-        self.debugger.trace_instruction(self.pc as u64, instruction, "TODO: add disassembly");
-        
+        self.debugger
+            .trace_instruction(self.pc, instruction, "TODO: add disassembly");
+
         // 执行指令
         self.execute(instruction)?;
-        
+
         // 单步执行等待
         self.debugger.wait_for_next();
-        
+
         // 更新 PC
         self.pc = self.pc.wrapping_add(4);
         Ok(())
     }
 
     fn fetch(&self) -> Result<u32, &'static str> {
-        self.memory.read(self.pc as usize, 4)
+        self.memory.vread(self.pc as usize, 4)
     }
 
     fn execute(&mut self, instruction: u32) -> Result<(), &'static str> {
-        // TODO: 实现指令解码和执行
         Ok(())
     }
 
@@ -68,25 +69,25 @@ impl Cpu {
 
     // 内存访问包装方法
     pub fn read_memory(&mut self, addr: u32, len: usize) -> Result<u32, &'static str> {
-        let value = self.memory.read(addr as usize, len)?;
-        self.debugger.trace_memory_read(addr as u64, len, value as u64);
+        let value = self.memory.vread(addr as usize, len)?;
+        self.debugger.trace_memory_read(addr as usize, len, value);
         Ok(value)
     }
 
     pub fn write_memory(&mut self, addr: u32, value: u32, len: usize) -> Result<(), &'static str> {
-        self.debugger.trace_memory_write(addr as u64, len, value as u64);
-        self.memory.write(addr as usize, value, len)
+        self.debugger.trace_memory_write(addr as usize, len, value);
+        self.memory.vwrite(addr as usize, value, len)
     }
 
     // 添加新方法
     pub fn load_program(&mut self, filename: &str) -> std::io::Result<()> {
         let loader = Loader::new();
         loader.load_program(&mut self.memory, filename)?;
-        
+
         // 设置 PC 为程序入口点
         self.set_pc(loader.get_entry_point() as u32)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        
+
         Ok(())
     }
 
@@ -115,6 +116,6 @@ impl Cpu {
     pub fn show_registers(&self) {
         println!("=== Register State ===");
         println!("PC: 0x{:08x}", self.pc);
-        self.registers.dump();
+        self.isa.regs.dump();
     }
 }
