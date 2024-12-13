@@ -52,7 +52,7 @@ pub struct RiscvInstruction {
 }
 
 // 解码函数
-pub fn decode_instruction(inst: u32) -> RiscvInstruction {
+pub fn decode_instruction(inst: u32, _cpu: &mut crate::cpu::Cpu) -> RiscvInstruction {
     let opcode = inst & 0x7f;
     let inst_type = InstType::I; // 假设为 I 类型，实际情况应根据 opcode 确定
 
@@ -60,7 +60,10 @@ pub fn decode_instruction(inst: u32) -> RiscvInstruction {
     match opcode {
         0x13 => RiscvInstruction {
             operands,
-            execute, // BUG: make it without cpu structure
+            execute: |operands, cpu| {
+                cpu.registers.write(operands.rd, cpu.registers.read(operands.rs1) + operands.imm as u32);
+                Ok(0)
+            },
         },
         // 其他指令...
         _ => panic!("Unknown opcode"),

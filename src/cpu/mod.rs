@@ -2,11 +2,11 @@ use crate::debugger::Debugger;
 use crate::loader::Loader;
 use crate::memory::Memory;
 use crate::register::RegisterFile;
-use crate::isa::inst::decode_instruction;
+use crate::isa::decode_instruction;
 
 
 pub struct Cpu {
-    registers: RegisterFile,
+    pub registers: RegisterFile,
     pc: u32,
     memory: Memory,
     debugger: Debugger,
@@ -24,7 +24,7 @@ impl Cpu {
 
     pub fn step(&mut self) -> Result<(), &'static str> {
         let raw_inst = self.fetch()?;
-        let instruction = decode_instruction(raw_inst);
+        let instruction = decode_instruction(raw_inst, self);
         self.pc = (instruction.execute)(&instruction.operands, self)?;
         Ok(())
     }
@@ -33,44 +33,12 @@ impl Cpu {
         self.memory.vread(self.pc as usize, 4)
     }
 
-    // 寄存器访问方法
-    pub fn read_reg(&self, index: usize) -> u32 {
-        self.registers.read(index)
-    }
-
-    pub fn write_reg(&mut self, index: usize, value: u32) {
-        self.registers.write(index, value)
-    }
-
-    // PC 相关操作
-    pub fn get_pc(&self) -> u32 {
-        self.pc
-    }
-
-    pub fn set_pc(&mut self, new_pc: u32) -> Result<(), &'static str> {
+    fn set_pc(&mut self, new_pc: u32) -> Result<(), &'static str> {
         if new_pc % 4 != 0 {
             return Err("PC must be aligned to 4 bytes");
         }
         self.pc = new_pc;
         Ok(())
-    }
-
-    // 分支跳转
-    pub fn branch(&mut self, offset: i32) -> Result<(), &'static str> {
-        let new_pc = self.pc.wrapping_add(offset as u32);
-        self.set_pc(new_pc)
-    }
-
-    // 内存访问包装方法
-    pub fn read_memory(&mut self, addr: u32, len: usize) -> Result<u32, &'static str> {
-        let value = self.memory.vread(addr as usize, len)?;
-        self.debugger.trace_memory_read(addr as usize, len, value);
-        Ok(value)
-    }
-
-    pub fn write_memory(&mut self, addr: u32, value: u32, len: usize) -> Result<(), &'static str> {
-        self.debugger.trace_memory_write(addr as usize, len, value);
-        self.memory.vwrite(addr as usize, value, len)
     }
 
     // 添加新方法
