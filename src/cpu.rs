@@ -1,8 +1,8 @@
 use crate::debugger::Debugger;
+use crate::inst::{decode_instruction, BranchOp, NextPc, Operation, RegOp};
 use crate::loader::Loader;
 use crate::memory::Memory;
 use crate::register::RegisterFile;
-use crate::inst::{Operation, RegOp, BranchOp, NextPc, decode_instruction};
 
 pub struct Cpu {
     registers: RegisterFile,
@@ -24,15 +24,16 @@ impl Cpu {
     pub fn step(&mut self) -> Result<(), &'static str> {
         let raw_inst = self.fetch()?;
         let decoded = decode_instruction(raw_inst)?;
-        
+
         // 执行指令前的调试信息
-        self.debugger.trace_instruction(self.pc, raw_inst, "TODO: add disassembly");
+        self.debugger
+            .trace_instruction(self.pc, raw_inst, "TODO: add disassembly");
 
         // 执行操作
         match decoded.op {
             Operation::RegWrite { rd, value } => {
                 self.registers.write(rd, value);
-            },
+            }
             Operation::RegImmOp { rd, rs1, imm, op } => {
                 let rs1_val = self.registers.read(rs1);
                 let result = match op {
@@ -48,7 +49,7 @@ impl Cpu {
                     _ => return Err("Unsupported RegImmOp"),
                 };
                 self.registers.write(rd, result);
-            },
+            }
             Operation::RegRegOp { rd, rs1, rs2, op } => {
                 let rs1_val = self.registers.read(rs1);
                 let rs2_val = self.registers.read(rs2);
@@ -65,20 +66,30 @@ impl Cpu {
                     RegOp::And => rs1_val & rs2_val,
                 };
                 self.registers.write(rd, result);
-            },
-            Operation::Load { rd, rs1, offset, size } => {
+            }
+            Operation::Load {
+                rd,
+                rs1,
+                offset,
+                size,
+            } => {
                 let addr = self.registers.read(rs1).wrapping_add(offset as u32);
                 let value = self.memory.vread(addr as usize, size)?;
                 self.registers.write(rd, value);
-            },
-            Operation::Store { rs1, rs2, offset, size } => {
+            }
+            Operation::Store {
+                rs1,
+                rs2,
+                offset,
+                size,
+            } => {
                 let addr = self.registers.read(rs1).wrapping_add(offset as u32);
                 let value = self.registers.read(rs2);
                 self.memory.vwrite(addr as usize, value, size)?;
-            },
+            }
             Operation::Jump { rd, offset: _ } => {
                 self.registers.write(rd, self.pc.wrapping_add(4));
-            },
+            }
             Operation::Branch { .. } => (), // 分支操作在 next_pc 中处理
         }
 
@@ -86,7 +97,12 @@ impl Cpu {
         self.pc = match decoded.next_pc {
             NextPc::Plus4 => self.pc.wrapping_add(4),
             NextPc::Jump(offset) => self.pc.wrapping_add(offset as u32),
-            NextPc::Branch { cond, rs1, rs2, offset } => {
+            NextPc::Branch {
+                cond,
+                rs1,
+                rs2,
+                offset,
+            } => {
                 let rs1_val = self.registers.read(rs1);
                 let rs2_val = self.registers.read(rs2);
                 let take_branch = match cond {
@@ -102,7 +118,7 @@ impl Cpu {
                 } else {
                     self.pc.wrapping_add(4)
                 }
-            },
+            }
         };
 
         // 单步执行等待
