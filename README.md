@@ -4,17 +4,16 @@ This is a RISC-V instruction set simulator implemented in Rust, supporting the R
 
 ---
 
-# RISC-V 模拟器 cakemu_rv
+# RISC-V 指令集模拟器 cakemu_rv
 
 这是一个用 Rust 实现的 RISC-V 指令集模拟器，支持 RV32I 基础指令集。主要用于学习。
 
 ## 功能特点  Function Features
 
-- 支持完整的 RV32I 基础指令集
+- 支持 RV32I 基础指令集
 - 模拟 32 个通用寄存器
-- 实现虚拟内存访问
 - 支持程序加载和执行
-- 提供二进制程序构建工具
+- 提供简单的二进制程序构建工具
 
 ## 项目结构  Project Structure
 
@@ -52,6 +51,7 @@ cargo build --release
 ### 创建测试程序  Build Test Program
 
 使用提供的二进制构建工具创建测试程序：
+
 Use the provided binary builder to create a test program:
 
 ```bash
@@ -59,6 +59,7 @@ cargo run --bin build_binary
 ```
 
 这将生成一个示例程序 `program.bin`。
+
 This will generate an example program `program.bin`.
 
 ### 运行模拟器  Run Simulator
@@ -70,6 +71,7 @@ cargo run --bin riscv-emu program.bin --step  # step by step
 ### 创建自定义程序  Build Custom Program
 
 可以使用 `BinaryBuilder` 创建自定义的 RISC-V 程序：
+
 You can use `BinaryBuilder` to create a custom RISC-V program:
 
 ```rust
@@ -91,11 +93,13 @@ builder.save("custom_program.bin")?;
 
 ## 开发说明  Development Notes
 
-以上功能几乎暂未实现，期待你的到来
-Up to now, the above functions have not been implemented yet, looking forward to your coming
+已经实现了RV32I的指令，准备进行指令测试以及添加外设用于课程设计实验
+
+The instructions for RV32I have been implemented and are ready for instruction testing and adding peripherals for course design experiments
 
 ## 待实现功能  To-Do List
 
-- [ ] RV32I 指令支持  RV32I instruction support
+- [x] RV32I 指令支持  RV32I instruction support
 - [ ] 外设寻址空间挂载到总线  Peripheral addressing space mounted to the bus
-- [ ] 修正失败的Instruction模块  Fix the failed Instruction module
+- [x] 修正失败的Instruction模块  Fix the failed Instruction module
+- [ ] 编写进行指令测试的批处理脚本  Write batch scripts for instruction testing
