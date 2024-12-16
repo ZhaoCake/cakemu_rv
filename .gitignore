@@ -1,3 +1,4 @@
 /target
 /reference
 Cargo.lock
+program.bin
