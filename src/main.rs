@@ -1,10 +1,5 @@
-mod cpu;
-mod debugger;
-mod loader;
-mod memory;
-
-use cpu::Cpu;
 use std::env;
+use riscv_emu::cpu;
 
 fn print_usage(program: &str) {
     eprintln!("Usage: {} <program-file> [options]", program);
@@ -24,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let program_file = &args[1];
 
     // 创建 CPU 实例
-    let mut cpu = Cpu::new(16 * 1024 * 1024);
+    let mut cpu = cpu::Cpu::new(16 * 1024 * 1024);
 
     // 处理命令行选项
     for arg in &args[2..] {
