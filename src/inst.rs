@@ -20,16 +20,24 @@ pub enum Operation {
     Jump { rd: usize, offset: i32 },
     Load { rd: usize, rs1: usize, offset: i32, size: usize },
     Store { rs1: usize, rs2: usize, offset: i32, size: usize },
+    SystemCall(SystemCallType),
 }
 
 #[derive(Debug)]
 pub enum RegOp {
-    Add, Sub, And, Or, Xor, Slt, Sltu, Sll, Srl, Sra,
+    Add, Sub, And, Or, Xor, Slt, Sltu, Sll, Srl, Sra,  // R-type
+    Addi, Slti, Sltiu, Xori, Ori, Andi, Slli, Srli, Srai, // I-type
 }
 
 #[derive(Debug, Clone)]
 pub enum BranchOp {
-    Eq, Ne, Lt, Ge, Ltu, Geu,
+    Eq, Ne, Lt, Ge, Ltu, Geu, // B-type
+}
+
+#[derive(Debug)]
+pub enum SystemCallType {
+    Ecall,
+    Ebreak,
 }
 
 impl Operands {
@@ -82,6 +90,24 @@ pub fn decode_instruction(inst: u32) -> Result<DecodedInst, &'static str> {
     let funct7 = (inst >> 25) & 0x7f;
 
     match opcode {
+        0x73 => {  // SYSTEM
+            match funct3 {
+                0x0 => {
+                    match inst {
+                        0x00000073 => Ok(DecodedInst {  // ECALL
+                            op: Operation::SystemCall(SystemCallType::Ecall),
+                            next_pc: NextPc::Plus4,
+                        }),
+                        0x00100073 => Ok(DecodedInst {  // EBREAK
+                            op: Operation::SystemCall(SystemCallType::Ebreak),
+                            next_pc: NextPc::Plus4,
+                        }),
+                        _ => Err("Invalid system instruction"),
+                    }
+                },
+                _ => Err("Invalid funct3 for system instruction"),
+            }
+        },
         0x37 => {  // LUI
             let ops = Operands::decode(inst, InstType::U);
             Ok(DecodedInst {
@@ -157,17 +183,17 @@ pub fn decode_instruction(inst: u32) -> Result<DecodedInst, &'static str> {
                 next_pc: NextPc::Plus4,
             })
         },
-        0x13 => {  // I-type ALU
+        0x13 => {  // I-type ALU  // checked
             let ops = Operands::decode(inst, InstType::I);
             let op = match funct3 {
-                0x0 => RegOp::Add,
-                0x1 => RegOp::Sll,
-                0x2 => RegOp::Slt,
-                0x3 => RegOp::Sltu,
-                0x4 => RegOp::Xor,
-                0x5 => if funct7 == 0x20 { RegOp::Sra } else { RegOp::Srl },
-                0x6 => RegOp::Or,
-                0x7 => RegOp::And,
+                0x0 => RegOp::Addi,
+                0x1 => RegOp::Slli,
+                0x2 => RegOp::Slti,
+                0x3 => RegOp::Sltiu,
+                0x4 => RegOp::Xori,
+                0x5 => if funct7 == 0x20 { RegOp::Srai } else { RegOp::Srli },
+                0x6 => RegOp::Ori,
+                0x7 => RegOp::Andi,
                 _ => return Err("Invalid funct3 for I-type ALU"),
             };
             Ok(DecodedInst {

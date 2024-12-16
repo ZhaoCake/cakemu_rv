@@ -25,7 +25,7 @@ impl Debugger {
         if !self.itrace_enabled {
             return;
         }
-        let trace = format!("0x{:016x}: 0x{:08x} {}", pc, instruction, disasm);
+        let trace = format!("0x{:08x}: 0x{:08x} {}", pc, instruction, disasm);
         if self.instruction_trace.len() >= self.trace_limit {
             self.instruction_trace.pop_front();
         }

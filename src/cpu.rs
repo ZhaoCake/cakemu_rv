@@ -1,5 +1,5 @@
 use crate::debugger::Debugger;
-use crate::inst::{decode_instruction, BranchOp, NextPc, Operation, RegOp};
+use crate::inst::{decode_instruction, BranchOp, NextPc, Operation, RegOp, SystemCallType};
 use crate::loader::Loader;
 use crate::memory::Memory;
 use crate::register::RegisterFile;
@@ -15,7 +15,7 @@ impl Cpu {
     pub fn new(memory_size: usize) -> Self {
         Self {
             registers: RegisterFile::new(),
-            pc: 0,
+            pc: 0x80000000,  // init pc=0x80000000
             memory: Memory::new(memory_size),
             debugger: Debugger::new(),
         }
@@ -37,15 +37,15 @@ impl Cpu {
             Operation::RegImmOp { rd, rs1, imm, op } => {
                 let rs1_val = self.registers.read(rs1);
                 let result = match op {
-                    RegOp::Add => rs1_val.wrapping_add(imm as u32),
-                    RegOp::Sll => rs1_val << (imm & 0x1f),
-                    RegOp::Slt => ((rs1_val as i32) < imm) as u32,
-                    RegOp::Sltu => (rs1_val < imm as u32) as u32,
-                    RegOp::Xor => rs1_val ^ (imm as u32),
-                    RegOp::Srl => rs1_val >> (imm & 0x1f),
-                    RegOp::Sra => ((rs1_val as i32) >> (imm & 0x1f)) as u32,
-                    RegOp::Or => rs1_val | (imm as u32),
-                    RegOp::And => rs1_val & (imm as u32),
+                    RegOp::Add | RegOp::Addi => rs1_val.wrapping_add(imm as u32),
+                    RegOp::Sll | RegOp::Slli => rs1_val << (imm & 0x1f),
+                    RegOp::Slt | RegOp::Slti => ((rs1_val as i32) < imm) as u32,
+                    RegOp::Sltu | RegOp::Sltiu => (rs1_val < imm as u32) as u32,
+                    RegOp::Xor | RegOp::Xori => rs1_val ^ (imm as u32),
+                    RegOp::Srl | RegOp::Srli => rs1_val >> (imm & 0x1f),
+                    RegOp::Sra | RegOp::Srai => ((rs1_val as i32) >> (imm & 0x1f)) as u32,
+                    RegOp::Or | RegOp::Ori => rs1_val | (imm as u32),
+                    RegOp::And | RegOp::Andi => rs1_val & (imm as u32),
                     _ => return Err("Unsupported RegImmOp"),
                 };
                 self.registers.write(rd, result);
@@ -54,16 +54,16 @@ impl Cpu {
                 let rs1_val = self.registers.read(rs1);
                 let rs2_val = self.registers.read(rs2);
                 let result = match op {
-                    RegOp::Add => rs1_val.wrapping_add(rs2_val),
+                    RegOp::Add | RegOp::Addi => rs1_val.wrapping_add(rs2_val),
                     RegOp::Sub => rs1_val.wrapping_sub(rs2_val),
-                    RegOp::Sll => rs1_val << (rs2_val & 0x1f),
-                    RegOp::Slt => ((rs1_val as i32) < (rs2_val as i32)) as u32,
-                    RegOp::Sltu => (rs1_val < rs2_val) as u32,
-                    RegOp::Xor => rs1_val ^ rs2_val,
-                    RegOp::Srl => rs1_val >> (rs2_val & 0x1f),
-                    RegOp::Sra => ((rs1_val as i32) >> (rs2_val & 0x1f)) as u32,
-                    RegOp::Or => rs1_val | rs2_val,
-                    RegOp::And => rs1_val & rs2_val,
+                    RegOp::Sll | RegOp::Slli => rs1_val << (rs2_val & 0x1f),
+                    RegOp::Slt | RegOp::Slti => ((rs1_val as i32) < (rs2_val as i32)) as u32,
+                    RegOp::Sltu | RegOp::Sltiu => (rs1_val < rs2_val) as u32,
+                    RegOp::Xor | RegOp::Xori => rs1_val ^ rs2_val,
+                    RegOp::Srl | RegOp::Srli => rs1_val >> (rs2_val & 0x1f),
+                    RegOp::Sra | RegOp::Srai => ((rs1_val as i32) >> (rs2_val & 0x1f)) as u32,
+                    RegOp::Or | RegOp::Ori => rs1_val | rs2_val,
+                    RegOp::And | RegOp::Andi => rs1_val & rs2_val,
                 };
                 self.registers.write(rd, result);
             }
@@ -74,7 +74,7 @@ impl Cpu {
                 size,
             } => {
                 let addr = self.registers.read(rs1).wrapping_add(offset as u32);
-                let value = self.memory.vread(addr as usize, size)?;
+                let value = self.read(addr as usize, size)?;
                 self.registers.write(rd, value);
             }
             Operation::Store {
@@ -85,12 +85,42 @@ impl Cpu {
             } => {
                 let addr = self.registers.read(rs1).wrapping_add(offset as u32);
                 let value = self.registers.read(rs2);
-                self.memory.vwrite(addr as usize, value, size)?;
+                self.write(addr as usize, value, size)?;
             }
             Operation::Jump { rd, offset: _ } => {
                 self.registers.write(rd, self.pc.wrapping_add(4));
             }
             Operation::Branch { .. } => (), // 分支操作在 next_pc 中处理
+            Operation::SystemCall(syscall_type) => {
+                match syscall_type {
+                    SystemCallType::Ebreak => {
+                        println!("[SYSTEM] Breakpoint hit at PC: 0x{:08x}", self.pc);
+                        // self.debugger.single_step = true;  // 启用单步执行
+                        // exit with code 0
+                        std::process::exit(0);
+                    },
+                    SystemCallType::Ecall => {
+                        // 获取系统调用号（在 a7 寄存器中）
+                        let syscall_num = self.registers.read(17); // a7 寄存器
+                        // 获取参数（在 a0-a6 寄存器中）
+                        let a0 = self.registers.read(10);
+                        
+                        // 处理系统调用
+                        match syscall_num {
+                            93 => {  // exit
+                                println!("[SYSTEM] Program exit with code: {}", a0);
+                                return Err("Program exit");
+                            },
+                            64 => {  // write
+                                println!("[SYSTEM] Write syscall: {}", a0);
+                            },
+                            _ => {
+                                println!("[SYSTEM] Unimplemented syscall: {}", syscall_num);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // 更新 PC
@@ -126,8 +156,19 @@ impl Cpu {
         Ok(())
     }
 
-    fn fetch(&self) -> Result<u32, &'static str> {
-        self.memory.vread(self.pc as usize, 4)
+    fn fetch(&mut self) -> Result<u32, &'static str> {
+        self.read(self.pc as usize, 4)
+    }
+
+    // memory read/write
+    fn read(&mut self, addr: usize, len: usize) -> Result<u32, &'static str> {
+        self.debugger.trace_memory_read(addr, len, 0);
+        self.memory.vread(addr, len)
+    }
+
+    fn write(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
+        self.debugger.trace_memory_write(addr, len, value);
+        self.memory.vwrite(addr, value, len)
     }
 
     fn set_pc(&mut self, new_pc: u32) -> Result<(), &'static str> {
@@ -151,10 +192,12 @@ impl Cpu {
     }
 
     // 添加内存转储方法（用于调试）
-    pub fn dump_memory(&self, start: u32, length: usize) -> Vec<u8> {
+    pub fn dump_memory(&mut self, start: u32, length: usize) -> Vec<u8> {
         let mut result = Vec::with_capacity(length);
-        if let Ok(data) = self.memory.read_bytes(start as usize, length) {
-            result.extend_from_slice(data);
+        for addr in (start as usize)..(start as usize + length) {
+            if let Ok(value) = self.read(addr, 1) {
+                result.push(value as u8);
+            }
         }
         result
     }

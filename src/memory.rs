@@ -9,7 +9,23 @@ impl Memory {
         }
     }
 
-    pub fn pread(&self, addr: usize, len: usize) -> Result<u32, &'static str> {
+    // 将物理地址转换为内存索引
+    fn translate_address(&self, addr: usize) -> Result<usize, &'static str> {
+        if addr < 0x80000000 {
+            // return Err("Invalid memory access: address below 0x80000000");
+            // return addr directly
+            return Ok(addr + 0x20000000); 
+            // 实际上是把小于0x80000000的这些内存访问映射到了0x20000000以尽量
+            // 和程序中0x80000000实际地址0x00000000开头的代码存储空间错开
+            // 这要求最好有0x30000000个存储单元
+        }
+        Ok(addr - 0x80000000)
+    }
+
+    pub fn vread(&self, addr: usize, len: usize) -> Result<u32, &'static str> {
+
+        let addr = self.translate_address(addr)?;
+        
         // 检查长度是否合法
         match len {
             1 | 2 | 4 => (),
@@ -34,7 +50,10 @@ impl Memory {
         Ok(value)
     }
 
-    pub fn pwrite(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
+    pub fn vwrite(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
+
+        let addr = self.translate_address(addr)?;
+        
         // 检查长度是否合法
         match len {
             1 | 2 | 4 => (),
@@ -58,31 +77,22 @@ impl Memory {
         Ok(())
     }
 
-    // 批量访问方法
     pub fn write_bytes(&mut self, addr: usize, data: &[u8]) -> Result<(), &'static str> {
+        let addr = self.translate_address(addr)?;
         if addr + data.len() > self.data.len() {
             return Err("Memory write out of bounds");
         }
-
+        
         self.data[addr..addr + data.len()].copy_from_slice(data);
         Ok(())
     }
 
     pub fn read_bytes(&self, addr: usize, len: usize) -> Result<&[u8], &'static str> {
+        let addr = self.translate_address(addr)?;
         if addr + len > self.data.len() {
             return Err("Memory read out of bounds");
         }
-
+        
         Ok(&self.data[addr..addr + len])
-    }
-
-    // 上面知识物理读取 写入，下面是虚拟读取写入，外设读写也是调用下面这两个方法
-    pub fn vread(&self, addr: usize, len: usize) -> Result<u32, &'static str> {
-        // TODO: 范围判断
-        self.pread(addr, len)
-    }
-
-    pub fn vwrite(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
-        self.pwrite(addr, value, len)
     }
 }

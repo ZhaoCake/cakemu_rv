@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let program_file = &args[1];
 
     // 创建 CPU 实例
-    let mut cpu = cpu::Cpu::new(16 * 1024 * 1024);
+    let mut cpu = cpu::Cpu::new( 0x30000000);
 
     // 处理命令行选项
     for arg in &args[2..] {
