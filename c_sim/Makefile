@@ -20,23 +20,41 @@ CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
 
+# 目录设置
+SRC_DIR = src
+INC_DIR = include
+BUILD_DIR = build
+
 # 源文件
-SRC = main.c start.S
+SRCS = main.c start.S $(wildcard $(SRC_DIR)/*.c)
+
+# 头文件
+INC = -I$(INC_DIR)
 
 # 输出文件
-OUTPUT_ELF = program.elf
-OUTPUT_BIN = program.bin
-OUTPUT_TXT = program.txt
+OUTPUT_ELF = $(BUILD_DIR)/program.elf
+OUTPUT_BIN = $(BUILD_DIR)/program.bin
+OUTPUT_TXT = $(BUILD_DIR)/program.txt
 
 # 编译选项
-CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -T linker.ld -ffreestanding -O2 -Wall
+CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -T linker.ld \
+         -ffreestanding -O2 -flto -ffunction-sections -fdata-sections \
+         -Wall -Wextra \
+         $(INC)
+
+# 链接选项
+LDFLAGS = -Wl,--gc-sections
 
 # 默认目标
-all: $(OUTPUT_ELF) $(OUTPUT_BIN) $(OUTPUT_TXT)
+all: $(BUILD_DIR) $(OUTPUT_ELF) $(OUTPUT_BIN) $(OUTPUT_TXT)
+
+# 创建构建目录
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 # 生成 ELF 文件
-$(OUTPUT_ELF): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $^
+$(OUTPUT_ELF): $(SRCS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 # 生成 BIN 文件
 $(OUTPUT_BIN): $(OUTPUT_ELF)
@@ -44,13 +62,15 @@ $(OUTPUT_BIN): $(OUTPUT_ELF)
 
 # 生成反汇编文本文件
 $(OUTPUT_TXT): $(OUTPUT_ELF)
-	$(OBJDUMP) -D $< > $@
+	$(OBJDUMP) -d $< > $@
 
 # 清理生成的文件
 clean:
-	rm -f $(OUTPUT_ELF) $(OUTPUT_BIN) $(OUTPUT_TXT)
+	rm -rf $(BUILD_DIR)
 
 # 显示文件大小
 size: $(OUTPUT_ELF)
 	size $<
 	ls -l $(OUTPUT_BIN)
+
+.PHONY: all clean size

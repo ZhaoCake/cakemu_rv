@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 pub struct Debugger {
     pub itrace_enabled: bool,
     pub mtrace_enabled: bool,
+    pub regtrace_enabled: bool,
     pub single_step: bool,
     instruction_trace: VecDeque<String>,
     memory_trace: VecDeque<String>,
@@ -29,9 +30,10 @@ pub struct Debugger {
 impl Debugger {
     pub fn new() -> Self {
         Self {
-            itrace_enabled: true, // 默认开启
-            mtrace_enabled: true, // 默认开启
-            single_step: false,   // 默认关闭
+            itrace_enabled: true,    // 默认开启
+            mtrace_enabled: true,    // 默认开启
+            regtrace_enabled: true,  // 默认开启
+            single_step: false,      // 默认关闭
             instruction_trace: VecDeque::with_capacity(16),
             memory_trace: VecDeque::with_capacity(16),
             trace_limit: 16,

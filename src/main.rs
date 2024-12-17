@@ -23,6 +23,7 @@ fn print_usage(program: &str) {
     eprintln!("Options:");
     eprintln!("  --no-itrace    Disable instruction trace");
     eprintln!("  --no-mtrace    Disable memory trace");
+    eprintln!("  --no-regtrace  Disable register trace");
     eprintln!("  --step         Enable single-step execution");
 }
 
@@ -42,12 +43,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let memory_size = 0x03000000;  // 48MB total
     let mut cpu = cpu::Cpu::new(memory_size);
 
+    // 默认启用所有跟踪
+    let mut enable_itrace = true;
+    let mut enable_mtrace = true;
+    let mut enable_regtrace = true;
+    let mut enable_step = false;
+
     // 处理命令行选项
     for arg in &args[2..] {
         match arg.as_str() {
-            "--no-itrace" => cpu.set_itrace(false),
-            "--no-mtrace" => cpu.set_mtrace(false),
-            "--step" => cpu.set_single_step(true),
+            "--no-itrace" => enable_itrace = false,
+            "--no-mtrace" => enable_mtrace = false,
+            "--no-regtrace" => enable_regtrace = false,
+            "--step" => enable_step = true,
             _ => {
                 eprintln!("Unknown option: {}", arg);
                 print_usage(&args[0]);
@@ -56,20 +64,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // 设置调试选项
+    cpu.set_itrace(enable_itrace);
+    cpu.set_mtrace(enable_mtrace);
+    cpu.set_regtrace(enable_regtrace);
+    cpu.set_single_step(enable_step);
+
     println!("RISC-V Emulator Starting...");
     println!("Loading program: {}", program_file);
 
     // 加载程序
     cpu.load_program(program_file)?;
 
-    // 显示初始寄存器状态
-    cpu.show_registers();
+    // 显示初始寄存器状态（如果启用）
+    if enable_regtrace {
+        cpu.show_registers();
+    }
 
     // 执行程序
     loop {
         match cpu.step() {
             Ok(()) => {
-                cpu.show_registers();
+                if enable_regtrace {
+                    cpu.show_registers();
+                }
             }
             Err(e) => {
                 println!("Execution error: {}", e);

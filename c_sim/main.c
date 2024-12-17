@@ -17,24 +17,21 @@
 
 // c_sim/main.c
 
-#include <stdint.h>
-
-// 定义内存地址
-#define PERIPH_BASE 0x02000000  // 外设基地址
-#define DATA_BASE   0x01000000  // 数据段基地址
+#include "include/uart.h"
 
 // 主函数
 int main() {
-    // 在外设区域写入数据
-    volatile uint32_t *periph_ptr = (uint32_t *)PERIPH_BASE;
-    *periph_ptr = 0xDEADBEEF;
+    // 单个字符测试
+    uart_putc('H');
+    uart_putc('i');
+    uart_putc('\n');
 
-    // 在数据区域写入数据
-    volatile uint32_t *data_ptr = (uint32_t *)DATA_BASE;
-    *data_ptr = 0x12345678;
+    // 使用宏输出字符串
+    UART_PRINT_STR("Test String 1\n");
+    uart_putc('-');
+    UART_PRINT_STR("Test String 2\n");
 
-    // 使用 ebreak 退出程序
+    // 使用 ebreak 结束程序
     asm volatile("ebreak");
-
     return 0;
 }

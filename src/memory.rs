@@ -15,14 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::devices::Devices;
+
 pub struct Memory {
     data: Vec<u8>,
+    devices: Devices,
 }
 
 impl Memory {
     pub fn new(size: usize) -> Self {
         Self {
             data: vec![0; size],
+            devices: Devices::new(),
         }
     }
 
@@ -37,9 +41,9 @@ impl Memory {
             addr if addr >= 0x01000000 && addr < 0x02000000 => {
                 Ok(addr)
             }
-            // 外设段：0x02000000-0x02FFFFFF -> 保持原地址
+            // 外设段：0x02000000-0x02FFFFFF -> 转发到设备
             addr if addr >= 0x02000000 && addr < 0x03000000 => {
-                Ok(addr)
+                Err("Device address")  // 特殊错误，表示这是设备地址
             }
             _ => {
                 println!("Invalid memory access at address 0x{:08x}", addr);
@@ -60,22 +64,29 @@ impl Memory {
             return Err("Misaligned memory access");
         }
 
-        // 然后进行地址转换
-        let physical_addr = self.translate_address(addr)?;
-        
-        // 最后检查转换后的地址是否在物理内存范围内
-        if physical_addr + len > self.data.len() {
-            println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
-                physical_addr, len, self.data.len());
-            return Err("Memory read out of bounds");
-        }
+        // 尝试地址转换
+        match self.translate_address(addr) {
+            Ok(physical_addr) => {
+                // 内存访问
+                if physical_addr + len > self.data.len() {
+                    println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
+                        physical_addr, len, self.data.len());
+                    return Err("Memory read out of bounds");
+                }
 
-        // 读取数据
-        let mut value: u32 = 0;
-        for i in 0..len {
-            value |= (self.data[physical_addr + i] as u32) << (i * 8);
+                // 读取数据
+                let mut value: u32 = 0;
+                for i in 0..len {
+                    value |= (self.data[physical_addr + i] as u32) << (i * 8);
+                }
+                Ok(value)
+            },
+            Err("Device address") => {
+                // 设备访问
+                self.devices.read(addr, len)
+            },
+            Err(e) => Err(e),
         }
-        Ok(value)
     }
 
     pub fn vwrite(&mut self, addr: usize, value: u32, len: usize) -> Result<(), &'static str> {
@@ -90,21 +101,28 @@ impl Memory {
             return Err("Misaligned memory access");
         }
 
-        // 然后进行地址转换
-        let physical_addr = self.translate_address(addr)?;
-        
-        // 最后检查转换后的地址是否在物理内存范围内
-        if physical_addr + len > self.data.len() {
-            println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
-                physical_addr, len, self.data.len());
-            return Err("Memory write out of bounds");
-        }
+        // 尝试地址转换
+        match self.translate_address(addr) {
+            Ok(physical_addr) => {
+                // 内存访问
+                if physical_addr + len > self.data.len() {
+                    println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
+                        physical_addr, len, self.data.len());
+                    return Err("Memory write out of bounds");
+                }
 
-        // 写入数据
-        for i in 0..len {
-            self.data[physical_addr + i] = ((value >> (i * 8)) & 0xFF) as u8;
+                // 写入数据
+                for i in 0..len {
+                    self.data[physical_addr + i] = ((value >> (i * 8)) & 0xFF) as u8;
+                }
+                Ok(())
+            },
+            Err("Device address") => {
+                // 设备访问
+                self.devices.write(addr, value, len)
+            },
+            Err(e) => Err(e),
         }
-        Ok(())
     }
 
     pub fn write_bytes(&mut self, addr: usize, data: &[u8]) -> Result<(), &'static str> {
@@ -114,19 +132,26 @@ impl Memory {
             return Err("Data size exceeds maximum allowed");
         }
 
-        // 然后进行地址转换
-        let physical_addr = self.translate_address(addr)?;
-        
-        // 最后检查转换后的地址是否在物理内存范围内
-        if physical_addr + data.len() > self.data.len() {
-            println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
-                physical_addr, data.len(), self.data.len());
-            return Err("Memory write out of bounds");
+        // 尝试地址转换
+        match self.translate_address(addr) {
+            Ok(physical_addr) => {
+                // 内存访问
+                if physical_addr + data.len() > self.data.len() {
+                    println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
+                        physical_addr, data.len(), self.data.len());
+                    return Err("Memory write out of bounds");
+                }
+                
+                println!("Writing {} bytes to physical address 0x{:08x}", data.len(), physical_addr);
+                self.data[physical_addr..physical_addr + data.len()].copy_from_slice(data);
+                Ok(())
+            },
+            Err("Device address") => {
+                // 不允许对设备进行批量写入
+                Err("Cannot write bytes to device address")
+            },
+            Err(e) => Err(e),
         }
-        
-        println!("Writing {} bytes to physical address 0x{:08x}", data.len(), physical_addr);
-        self.data[physical_addr..physical_addr + data.len()].copy_from_slice(data);
-        Ok(())
     }
 
     pub fn read_bytes(&self, addr: usize, len: usize) -> Result<&[u8], &'static str> {
@@ -136,17 +161,28 @@ impl Memory {
             return Err("Read length exceeds maximum allowed");
         }
 
-        // 然后进行地址转换
-        let physical_addr = self.translate_address(addr)?;
-        
-        // 最后检查转换后的地址是否在物理内存范围内
-        if physical_addr + len > self.data.len() {
-            println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
-                physical_addr, len, self.data.len());
-            return Err("Memory read out of bounds");
+        // 尝试地址转换
+        match self.translate_address(addr) {
+            Ok(physical_addr) => {
+                // 内存访问
+                if physical_addr + len > self.data.len() {
+                    println!("Physical memory access out of bounds: addr={:08x}, len={}, data_len={}", 
+                        physical_addr, len, self.data.len());
+                    return Err("Memory read out of bounds");
+                }
+                
+                println!("Reading {} bytes from physical address 0x{:08x}", len, physical_addr);
+                Ok(&self.data[physical_addr..physical_addr + len])
+            },
+            Err("Device address") => {
+                // 不允许对设备进行批量读取
+                Err("Cannot read bytes from device address")
+            },
+            Err(e) => Err(e),
         }
-        
-        println!("Reading {} bytes from physical address 0x{:08x}", len, physical_addr);
-        Ok(&self.data[physical_addr..physical_addr + len])
+    }
+
+    pub fn tick_devices(&mut self) {
+        self.devices.tick();
     }
 }

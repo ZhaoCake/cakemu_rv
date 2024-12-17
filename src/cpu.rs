@@ -114,7 +114,6 @@ impl Cpu {
                         println!("[SYSTEM] Breakpoint hit at PC: 0x{:08x}", self.pc);
                         // exit with code 0
                         std::process::exit(0);
-                        // self.debugger.single_step = true;  // 启用单步执行
                     },
                     SystemCallType::Ecall => {
                         // 获取系统调用号（在 a7 寄存器中）
@@ -167,6 +166,9 @@ impl Cpu {
                 }
             }
         };
+
+        // 更新设备状态
+        self.memory.tick_devices();
 
         // 单步执行等待
         self.debugger.wait_for_next();
@@ -228,13 +230,19 @@ impl Cpu {
         self.debugger.mtrace_enabled = enabled;
     }
 
+    pub fn set_regtrace(&mut self, enabled: bool) {
+        self.debugger.regtrace_enabled = enabled;
+    }
+
     pub fn set_single_step(&mut self, enabled: bool) {
         self.debugger.single_step = enabled;
     }
 
     pub fn show_registers(&self) {
-        println!("=== Register State ===");
-        println!("PC: 0x{:08x}", self.pc);
-        self.registers.dump();
+        if self.debugger.regtrace_enabled {
+            println!("=== Register State ===");
+            println!("PC: 0x{:08x}", self.pc);
+            self.registers.dump();
+        }
     }
 }

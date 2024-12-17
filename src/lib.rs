@@ -22,3 +22,4 @@ pub mod tools;
 pub mod debugger;
 pub mod inst;
 pub mod register;
+pub mod devices;
