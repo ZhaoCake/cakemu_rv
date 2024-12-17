@@ -30,9 +30,23 @@ impl Loader {
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
         
+        println!("Loading program, size: {} bytes", buffer.len());
+        println!("First few bytes: {:02x} {:02x} {:02x} {:02x}", 
+            buffer.get(0).unwrap_or(&0), 
+            buffer.get(1).unwrap_or(&0),
+            buffer.get(2).unwrap_or(&0),
+            buffer.get(3).unwrap_or(&0));
+        
         // 从 0x80000000 开始加载程序
-        memory.write_bytes(0x80000000, &buffer)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        println!("Attempting to load program at 0x80000000");
+        match memory.write_bytes(0x80000000, &buffer) {
+            Ok(_) => println!("Program loaded successfully"),
+            Err(e) => {
+                println!("Failed to load program: {}", e);
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+            }
+        }
+        
         Ok(())
     }
 

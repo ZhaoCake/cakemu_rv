@@ -112,9 +112,9 @@ impl Cpu {
                 match syscall_type {
                     SystemCallType::Ebreak => {
                         println!("[SYSTEM] Breakpoint hit at PC: 0x{:08x}", self.pc);
-                        // self.debugger.single_step = true;  // 启用单步执行
                         // exit with code 0
                         std::process::exit(0);
+                        // self.debugger.single_step = true;  // 启用单步执行
                     },
                     SystemCallType::Ecall => {
                         // 获取系统调用号（在 a7 寄存器中）

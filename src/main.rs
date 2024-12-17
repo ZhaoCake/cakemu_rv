@@ -35,8 +35,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let program_file = &args[1];
 
-    // 创建 CPU 实例
-    let mut cpu = cpu::Cpu::new( 0x30000000);
+    // 创建 CPU 实例，分配足够的内存
+    // 代码段：0x00000000-0x0FFFFFFF (256MB)
+    // 数据段：0x01000000-0x01FFFFFF (16MB)
+    // 外设段：0x02000000-0x02FFFFFF (16MB)
+    let memory_size = 0x03000000;  // 48MB total
+    let mut cpu = cpu::Cpu::new(memory_size);
 
     // 处理命令行选项
     for arg in &args[2..] {
