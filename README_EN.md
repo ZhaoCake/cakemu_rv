@@ -4,18 +4,23 @@
 
 ## Introduction
 
-CakeMu-RV is a RISC-V emulator written in Rust that supports the RV32I instruction set. It includes a simple peripheral system that can be used for learning and testing RISC-V assembly programs.
+CakeMu-RV is a simple RISC-V emulator written in Rust that supports the basic RV32I instruction set. This is a personal project for learning computer organization principles. By implementing basic CPU execution processes and a simple peripheral system, it helps understand fundamental computer operations. Currently, it includes basic features such as instruction execution, memory access, and basic I/O operations. This emulator can serve as a reference and practical tool for studying computer organization principles.
 
 ## Features
 
 - Supports RV32I base instruction set
-- Basic peripheral emulation:
-  - UART (Tested): For character output
-  - GPIO (Untested): General-purpose input/output interface
-  - Timer (Untested): Timer functionality
-- Provides C language development environment
-- Debug output control support
-- Lightweight binary program construction support
+- Complete peripheral emulation system:
+  - UART: Character and string output support
+  - Timer: Programmable timer with interrupt support
+  - Wave Generator: Multiple waveform output support
+    - Sine wave
+    - Square wave (adjustable duty cycle)
+    - Triangle wave
+    - Sawtooth wave
+- C language development environment
+- Debug output control
+- Waveform data visualization tools
+- Lightweight binary program construction
 
 ## Quick Start
 
@@ -36,6 +41,11 @@ make
 cargo run --bin riscv-emu build/program.bin
 ```
 
+4. View waveform data (if wave generator was used):
+```bash
+python3 tools/plot_wave.py
+```
+
 ## Command Line Options
 
 - `--no-mtrace`: Disable memory access tracing
@@ -45,65 +55,67 @@ cargo run --bin riscv-emu build/program.bin
 
 ## C Development
 
-The project provides a C language development environment with the following peripheral support:
+The project provides a complete C language development environment with the following peripheral support:
 
 ### UART
-- Basic function: Character output
+- Basic function: Character and string output
 - Interface:
   - `uart_putc(char c)`: Output single character
-  - `UART_PRINT_STR(str)`: Output string (macro)
+  - `uart_puts(const char *str)`: Output string
 
-### GPIO (Untested)
-- Basic function: General-purpose input/output
-- Register mapping: 0x02100000
+### Timer
+- Basic function: Programmable timer
+- Register mapping: 0x02000200
+- Main features:
+  - Programmable count value
+  - Interrupt support
+  - Auto-reload capability
+- Interface:
+  - `timer_init(uint32_t compare_value)`: Initialize timer
+  - `timer_enable()`: Start timer
+  - `timer_disable()`: Stop timer
+  - `timer_get_status()`: Get timer status
+  - `timer_clear_status()`: Clear timer status
 
-### Timer (Untested)
-- Basic function: Timer
-- Register mapping: 0x02200000
+### Wave Generator
+- Basic function: Waveform generator
+- Register mapping: 0x02000300
+- Supported waveforms:
+  - Sine wave (WAVE_TYPE_SINE)
+  - Square wave (WAVE_TYPE_SQUARE)
+  - Triangle wave (WAVE_TYPE_TRIANGLE)
+  - Sawtooth wave (WAVE_TYPE_SAWTOOTH)
+- Configurable parameters:
+  - Frequency (1Hz-100kHz)
+  - Amplitude (0-255)
+  - Phase (0-359 degrees)
+  - Duty cycle (0-100%, square wave only)
+- Interface:
+  - `wave_init()`: Initialize wave generator
+  - `wave_enable()`: Start output
+  - `wave_disable()`: Stop output
+  - `wave_set_type(uint32_t type)`: Set waveform type
+  - `wave_set_frequency(uint32_t freq)`: Set frequency
+  - `wave_set_amplitude(uint32_t amp)`: Set amplitude
+  - `wave_set_phase(uint32_t phase)`: Set phase
+  - `wave_set_duty(uint32_t duty)`: Set duty cycle
 
-## Lightweight Debugging
+## Waveform Data Visualization
 
-The project provides several debugging options:
+The project provides waveform data visualization tools:
 
-1. Instruction tracing:
+1. Waveform data is automatically saved to `wave.txt`
+2. Visualize using Python script:
 ```bash
-cargo run --bin riscv-emu program.bin  # All traces enabled by default
+python3 tools/plot_wave.py
 ```
 
-2. Step execution:
-```bash
-cargo run --bin riscv-emu program.bin --step  # Pause after each instruction
-```
+## Example Program
 
-3. Selective tracing:
-```bash
-# Enable instruction trace only
-cargo run --bin riscv-emu program.bin --no-mtrace --no-regtrace
-```
-
-## Binary Program Construction
-
-In addition to the C development environment, the project provides a lightweight binary program construction tool:
-
-1. Using the build tool:
-```bash
-cargo run --bin build_binary  # Generate example program
-```
-
-2. Custom program construction:
-```rust
-use riscv_emu::tools::binary_builder::BinaryBuilder;
-
-let mut builder = BinaryBuilder::new();
-// addi x1, x0, 5
-builder.add_instruction(0x00500093);
-builder.save("custom_program.bin")?;
-```
-
-This method is suitable for:
-- Quick testing of single or few instructions
-- Verifying instruction execution effects
-- Debugging emulator functionality
+The project includes a comprehensive test program (`c_sim/main.c`) that demonstrates the usage of all peripherals:
+- UART character and string output testing
+- Timer testing (short and long delays)
+- Wave Generator testing for all waveform types
 
 ## License
 

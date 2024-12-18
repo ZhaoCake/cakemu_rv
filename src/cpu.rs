@@ -143,6 +143,10 @@ impl Cpu {
         self.pc = match decoded.next_pc {
             NextPc::Plus4 => self.pc.wrapping_add(4),
             NextPc::Jump(offset) => self.pc.wrapping_add(offset as u32),
+            NextPc::JumpReg { rs1, offset, .. } => {
+                let rs1_val = self.registers.read(rs1);
+                (rs1_val.wrapping_add(offset as u32)) & !1  // 确保最低位为0
+            },
             NextPc::Branch {
                 cond,
                 rs1,

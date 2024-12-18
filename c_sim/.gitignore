@@ -1,4 +1,7 @@
-program.txt
-program.bin
-program.elf
-build/
+*.*
+!include/*
+!src/*
+!main.c
+!linker.ld
+!Makefile
+!start.S

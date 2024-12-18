@@ -4,18 +4,23 @@
 
 ## 简介
 
-CakeMu-RV 是一个用 Rust 编写的 RISC-V 模拟器，支持 RV32I 指令集。它包含了一个简单的外设系统，可以用于学习和测试 RISC-V 汇编程序。
+CakeMu-RV 是一个用 Rust 编写的简单 RISC-V 模拟器，支持 RV32I 基本指令集。这是一个用于学习计算机组成原理的个人项目，通过实现基本的 CPU 执行过程和简单的外设系统，帮助理解计算机的基本工作原理。目前实现了指令执行、内存访问和基础的 I/O 操作等基本功能。该模拟器可以作为学习计算机组成原理的一个参考和实践工具。
 
 ## 功能特性
 
 - 支持 RV32I 基本指令集
-- 包含基本外设模拟：
-  - UART（已测试）：用于字符输出
-  - GPIO（未测试）：通用输入输出接口
-  - Timer（未测试）：定时器功能
+- 完整的外设模拟系统：
+  - UART：支持字符和字符串输出
+  - Timer：可编程定时器，支持中断
+  - Wave Generator：波形发生器，支持多种波形输出
+    - 正弦波
+    - 方波（可调占空比）
+    - 三角波
+    - 锯齿波
 - 提供 C 语言开发环境
 - 支持调试输出控制
-- 支持轻量级二进制程序构建
+- 波形数据可视化工具
+- 轻量级二进制程序构建工具
 
 ## 快速开始
 
@@ -36,6 +41,11 @@ make
 cargo run --bin riscv-emu build/program.bin
 ```
 
+4. 查看波形数据（如果使用了波形发生器）：
+```bash
+python3 tools/plot_wave.py
+```
+
 ## 命令行选项
 
 - `--no-mtrace`：禁用内存访问跟踪
@@ -45,65 +55,67 @@ cargo run --bin riscv-emu build/program.bin
 
 ## C 语言开发
 
-项目提供了 C 语言开发环境，包含以下外设支持：
+项目提供了完整的 C 语言开发环境，包含以下外设支持：
 
 ### UART
-- 基本功能：字符输出
+- 基本功能：字符和字符串输出
 - 接口：
   - `uart_putc(char c)`：输出单个字符
-  - `UART_PRINT_STR(str)`：输出字符串（宏）
+  - `uart_puts(const char *str)`：输出字符串
 
-### GPIO（未测试）
-- 基本功能：通用输入输出
-- 寄存器映射：0x02100000
+### Timer
+- 基本功能：可编程定时器
+- 寄存器映射：0x02000200
+- 主要功能：
+  - 可编程计数值
+  - 中断支持
+  - 自动重载功能
+- 接口：
+  - `timer_init(uint32_t compare_value)`：初始化定时器
+  - `timer_enable()`：启动定时器
+  - `timer_disable()`：停止定时器
+  - `timer_get_status()`：获取定时器状态
+  - `timer_clear_status()`：清除定时器状态
 
-### Timer（未测试）
-- 基本功能：定时器
-- 寄存器映射：0x02200000
+### Wave Generator
+- 基本功能：波形发生器
+- 寄存器映射：0x02000300
+- 支持波形：
+  - 正弦波 (WAVE_TYPE_SINE)
+  - 方波 (WAVE_TYPE_SQUARE)
+  - 三角波 (WAVE_TYPE_TRIANGLE)
+  - 锯齿波 (WAVE_TYPE_SAWTOOTH)
+- 可配置参数：
+  - 频率 (1Hz-100kHz)
+  - 幅度 (0-255)
+  - 相位 (0-359度)
+  - 占空比 (0-100%, 仅方波)
+- 接口：
+  - `wave_init()`：初始化波形发生器
+  - `wave_enable()`：启动输出
+  - `wave_disable()`：停止输出
+  - `wave_set_type(uint32_t type)`：设置波形类型
+  - `wave_set_frequency(uint32_t freq)`：设置频率
+  - `wave_set_amplitude(uint32_t amp)`：设置幅度
+  - `wave_set_phase(uint32_t phase)`：设置相位
+  - `wave_set_duty(uint32_t duty)`：设置占空比
 
-## 轻量级调试
+## 波形数据可视化
 
-项目提供了多种调试选项：
+项目提供了波形数据可视化工具：
 
-1. 指令跟踪：
+1. 波形数据自动保存到 `wave.txt`
+2. 使用 Python 脚本可视化：
 ```bash
-cargo run --bin riscv-emu program.bin  # 默认启用所有跟踪
+python3 tools/plot_wave.py
 ```
 
-2. 单步执行：
-```bash
-cargo run --bin riscv-emu program.bin --step  # 每条指令暂停
-```
+## 示例程序
 
-3. 选择性跟踪：
-```bash
-# 仅启用指令跟踪
-cargo run --bin riscv-emu program.bin --no-mtrace --no-regtrace
-```
-
-## 二进制程序构建
-
-除了 C 语言开发环境，项目还提供了轻量级的二进制程序构建工具：
-
-1. 使用构建工具：
-```bash
-cargo run --bin build_binary  # 生成示例程序
-```
-
-2. 自定义程序构建：
-```rust
-use riscv_emu::tools::binary_builder::BinaryBuilder;
-
-let mut builder = BinaryBuilder::new();
-// addi x1, x0, 5
-builder.add_instruction(0x00500093);
-builder.save("custom_program.bin")?;
-```
-
-这种方式适合：
-- 快速测试单条或少量指令
-- 验证指令执行效果
-- 调试模拟器功能
+项目包含了一个综合测试程序 (`c_sim/main.c`)，演示了所有外设的使用方法：
+- UART 字符和字符串输出测试
+- Timer 定时器测试（短延时和长延时）
+- Wave Generator 所有波形类型测试
 
 ## 许可证
 

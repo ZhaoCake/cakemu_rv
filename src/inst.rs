@@ -98,6 +98,7 @@ pub struct DecodedInst {
 pub enum NextPc {
     Plus4,
     Jump(i32),
+    JumpReg { rd: usize, rs1: usize, offset: i32 },
     Branch { cond: BranchOp, rs1: usize, rs2: usize, offset: i32 },
 }
 
@@ -153,7 +154,7 @@ pub fn decode_instruction(inst: u32) -> Result<DecodedInst, &'static str> {
             }
             Ok(DecodedInst {
                 op: Operation::Jump { rd: ops.rd, offset: ops.imm },
-                next_pc: NextPc::Jump(ops.imm),
+                next_pc: NextPc::JumpReg { rd: ops.rd, rs1: ops.rs1, offset: ops.imm },
             })
         },
         0x63 => {  // Branches

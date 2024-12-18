@@ -30,13 +30,6 @@
 
 // 函数声明
 void uart_putc(char c);
-
-// 宏定义：直接输出字符串
-#define UART_PRINT_STR(str) do { \
-    const char *p = str; \
-    while (*p) { \
-        uart_putc(*p++); \
-    } \
-} while(0)
+void uart_puts(const char *str);
 
 #endif // UART_H 
