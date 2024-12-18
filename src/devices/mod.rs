@@ -20,15 +20,18 @@ pub mod simple_device;
 pub mod uart;
 pub mod gpio;
 pub mod timer;
+pub mod wave;
 
 use uart::Uart;
 use gpio::Gpio;
 use timer::Timer;
+use wave::Wave;
 
 pub struct Devices {
     uart: Uart,
     gpio: Gpio,
     timer: Timer,
+    wave: Wave,
 }
 
 impl Devices {
@@ -37,6 +40,7 @@ impl Devices {
             uart: Uart::new(),
             gpio: Gpio::new(),
             timer: Timer::new(),
+            wave: Wave::new(),
         }
     }
 
@@ -45,6 +49,7 @@ impl Devices {
             0x02000000..=0x0200000F => self.uart.read(addr & 0xF, size),
             0x02000100..=0x0200010F => self.gpio.read(addr & 0xF, size),
             0x02000200..=0x0200020F => self.timer.read(addr & 0xF, size),
+            0x02000300..=0x0200031F => self.wave.read(addr & 0x1F, size),
             _ => Err("Invalid device address"),
         }
     }
@@ -54,6 +59,7 @@ impl Devices {
             0x02000000..=0x0200000F => self.uart.write(addr & 0xF, value, size),
             0x02000100..=0x0200010F => self.gpio.write(addr & 0xF, value, size),
             0x02000200..=0x0200020F => self.timer.write(addr & 0xF, value, size),
+            0x02000300..=0x0200031F => self.wave.write(addr & 0x1F, value, size),
             _ => Err("Invalid device address"),
         }
     }
@@ -61,6 +67,7 @@ impl Devices {
     // 更新所有设备状态
     pub fn tick(&mut self) {
         self.timer.tick();
+        self.wave.tick();
     }
 
     // 检查是否有待处理的中断

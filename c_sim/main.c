@@ -18,18 +18,38 @@
 // c_sim/main.c
 
 #include "include/uart.h"
+#include "include/wave.h"
+#include "include/timer.h"
+
+// Delay use nop 
+#define DELAY_NOP(n) for (volatile int i = 0; i < n; i++) { asm volatile("nop"); }
 
 // 主函数
 int main() {
-    // 单个字符测试
-    uart_putc('H');
-    uart_putc('i');
-    uart_putc('\n');
+    // 初始化波形发生器
+    wave_init();
 
-    // 使用宏输出字符串
-    UART_PRINT_STR("Test String 1\n");
-    uart_putc('-');
-    UART_PRINT_STR("Test String 2\n");
+    // 配置波形参数
+    wave_set_type(WAVE_TYPE_SQUARE);    // 方波
+    wave_set_frequency(2);              // 2 Hz
+    wave_set_amplitude(255);            // 最大幅度
+    wave_set_phase(0);                  // 0度相位
+    wave_set_duty(30);                  // 30%占空比
+
+    // 输出提示信息
+    UART_PRINT_STR("Wave Generator Test\n");
+    UART_PRINT_STR("Generating square wave...\n");
+
+    // 启动波形发生器
+    wave_enable();
+
+    DELAY_NOP(100);
+
+    // 停止波形发生器
+    wave_disable();
+
+    UART_PRINT_STR("Wave generation completed.\n");
+    UART_PRINT_STR("Check wave.txt for output data.\n");
 
     // 使用 ebreak 结束程序
     asm volatile("ebreak");
