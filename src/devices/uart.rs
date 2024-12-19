@@ -41,6 +41,14 @@ impl Uart {
         }
     }
 
+    pub fn new_disabled() -> Self {
+        Self {
+            data: 0,
+            status: 0,
+            control: 0,
+        }
+    }
+
     pub fn read(&self, offset: usize, size: usize) -> Result<u32, &'static str> {
         if size != 1 {
             return Err("UART only supports byte access");

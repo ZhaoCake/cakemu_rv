@@ -20,59 +20,137 @@ pub mod uart;
 pub mod gpio;
 pub mod timer;
 pub mod wave;
+pub mod display;
 
 use uart::Uart;
-use gpio::Gpio;
+// use gpio::Gpio;
 use timer::Timer;
 use wave::Wave;
+use display::Display;
+
+#[derive(Debug)]
+pub struct DeviceConfig {
+    pub uart_enabled: bool,
+    pub uart_base: usize,
+    pub timer_enabled: bool,
+    pub timer_base: usize,
+    pub timer_auto_reload: bool,
+    pub timer_interrupt: bool,
+    pub wave_enabled: bool,
+    pub wave_base: usize,
+    pub wave_output: String,
+    pub wave_sample_rate: u32,
+    pub display_enabled: bool,
+    pub display_base: usize,
+    pub display_title: String,
+}
 
 pub struct Devices {
     uart: Uart,
-    gpio: Gpio,
     timer: Timer,
     wave: Wave,
+    display: Display,
+    config: DeviceConfig,
 }
 
 impl Devices {
-    pub fn new() -> Self {
+    pub fn new(config: DeviceConfig) -> Self {
         Self {
-            uart: Uart::new(),
-            gpio: Gpio::new(),
-            timer: Timer::new(),
-            wave: Wave::new(),
+            uart: if config.uart_enabled { Uart::new() } else { Uart::new_disabled() },
+            timer: if config.timer_enabled { 
+                Timer::new_with_config(config.timer_auto_reload, config.timer_interrupt) 
+            } else { 
+                Timer::new_disabled() 
+            },
+            wave: if config.wave_enabled { 
+                Wave::new_with_config(&config.wave_output, config.wave_sample_rate) 
+            } else { 
+                Wave::new_disabled() 
+            },
+            display: if config.display_enabled {
+                Display::new_with_config(&config.display_title)
+            } else {
+                Display::new_disabled()
+            },
+            config,
         }
     }
 
     pub fn read(&mut self, addr: usize, size: usize) -> Result<u32, &'static str> {
         match addr {
-            0x02000000..=0x0200000F => self.uart.read(addr & 0xF, size),
-            0x02000100..=0x0200010F => self.gpio.read(addr & 0xF, size),
-            0x02000200..=0x0200020F => self.timer.read(addr & 0xF, size),
-            0x02000300..=0x0200031F => self.wave.read(addr & 0x1F, size),
+            addr if addr >= self.config.uart_base && addr < self.config.uart_base + 0x10 => {
+                if !self.config.uart_enabled {
+                    return Err("UART is disabled");
+                }
+                self.uart.read(addr - self.config.uart_base, size)
+            },
+            addr if addr >= self.config.timer_base && addr < self.config.timer_base + 0x10 => {
+                if !self.config.timer_enabled {
+                    return Err("Timer is disabled");
+                }
+                self.timer.read(addr - self.config.timer_base, size)
+            },
+            addr if addr >= self.config.wave_base && addr < self.config.wave_base + 0x20 => {
+                if !self.config.wave_enabled {
+                    return Err("Wave generator is disabled");
+                }
+                self.wave.read(addr - self.config.wave_base, size)
+            },
+            addr if addr >= self.config.display_base && addr < self.config.display_base + 0x20 => {
+                if !self.config.display_enabled {
+                    return Err("Display is disabled");
+                }
+                self.display.read(addr - self.config.display_base, size)
+            },
             _ => Err("Invalid device address"),
         }
     }
 
     pub fn write(&mut self, addr: usize, value: u32, size: usize) -> Result<(), &'static str> {
         match addr {
-            0x02000000..=0x0200000F => self.uart.write(addr & 0xF, value, size),
-            0x02000100..=0x0200010F => self.gpio.write(addr & 0xF, value, size),
-            0x02000200..=0x0200020F => self.timer.write(addr & 0xF, value, size),
-            0x02000300..=0x0200031F => self.wave.write(addr & 0x1F, value, size),
+            addr if addr >= self.config.uart_base && addr < self.config.uart_base + 0x10 => {
+                if !self.config.uart_enabled {
+                    return Err("UART is disabled");
+                }
+                self.uart.write(addr - self.config.uart_base, value, size)
+            },
+            addr if addr >= self.config.timer_base && addr < self.config.timer_base + 0x10 => {
+                if !self.config.timer_enabled {
+                    return Err("Timer is disabled");
+                }
+                self.timer.write(addr - self.config.timer_base, value, size)
+            },
+            addr if addr >= self.config.wave_base && addr < self.config.wave_base + 0x20 => {
+                if !self.config.wave_enabled {
+                    return Err("Wave generator is disabled");
+                }
+                self.wave.write(addr - self.config.wave_base, value, size)
+            },
+            addr if addr >= self.config.display_base && addr < self.config.display_base + 0x20 => {
+                if !self.config.display_enabled {
+                    return Err("Display is disabled");
+                }
+                self.display.write(addr - self.config.display_base, value, size)
+            },
             _ => Err("Invalid device address"),
         }
     }
 
-    // 更新所有设备状态
     pub fn tick(&mut self) {
-        self.timer.tick();
-        self.wave.tick();
+        if self.config.timer_enabled {
+            self.timer.tick();
+        }
+        if self.config.wave_enabled {
+            self.wave.tick();
+        }
+        if self.config.display_enabled {
+            self.display.tick();
+        }
     }
 
-    // 检查是否有待处理的中断
     pub fn check_interrupts(&self) -> u32 {
         let mut interrupts = 0;
-        if self.timer.interrupt_pending() {
+        if self.config.timer_enabled && self.timer.interrupt_pending() {
             interrupts |= 1 << 0;  // Timer 中断位
         }
         interrupts

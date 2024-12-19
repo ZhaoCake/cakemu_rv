@@ -15,7 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::devices::Devices;
+use crate::devices::{Devices, DeviceConfig};
+
+// 固定的内存布局
+pub const MEMORY_SIZE: usize = 0x10000000;      // 256MB 总大小
+pub const CODE_BASE: usize = 0x80000000;        // 代码段基地址
+pub const DATA_BASE: usize = 0x81000000;        // 数据段基地址
+pub const DEVICE_BASE: usize = 0x82000000;      // 设备基地址
+
+#[derive(Debug)]
+pub struct MemoryConfig {
+    pub size: usize,  // 仅保留大小配置
+}
 
 pub struct Memory {
     data: Vec<u8>,
@@ -23,27 +34,26 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn new(size: usize) -> Self {
+    pub fn new(dev_config: DeviceConfig) -> Self {
         Self {
-            data: vec![0; size],
-            devices: Devices::new(),
+            data: vec![0; MEMORY_SIZE],
+            devices: Devices::new(dev_config),
         }
     }
 
-    // 将虚拟地址转换为内存索引
     fn translate_address(&self, addr: usize) -> Result<usize, &'static str> {
         match addr {
-            // 代码段：0x80000000-0x8FFFFFFF -> 0x00000000-0x0FFFFFFF
-            addr if addr >= 0x80000000 && addr < 0x90000000 => {
-                Ok(addr - 0x80000000)
+            // 代码段 (0x80000000 - 0x80FFFFFF)
+            addr if addr >= CODE_BASE && addr < DATA_BASE => {
+                Ok(addr - CODE_BASE)  // 转换到物理地址 0 开始
             }
-            // 数据段：0x01000000-0x01FFFFFF -> 保持原地址
-            addr if addr >= 0x01000000 && addr < 0x02000000 => {
-                Ok(addr)
+            // 数据段 (0x81000000 - 0x81FFFFFF)
+            addr if addr >= DATA_BASE && addr < DEVICE_BASE => {
+                Ok((addr - DATA_BASE) + 0x1000000)  // 数据段映射到 16MB 开始
             }
-            // 外设段：0x02000000-0x02FFFFFF -> 转发到设备
-            addr if addr >= 0x02000000 && addr < 0x03000000 => {
-                Err("Device address")  // 特殊错误，表示这是设备地址
+            // 外设段 (0x82000000+)
+            addr if addr >= DEVICE_BASE => {
+                Err("Device address")
             }
             _ => {
                 println!("Invalid memory access at address 0x{:08x}", addr);
@@ -146,11 +156,10 @@ impl Memory {
                 self.data[physical_addr..physical_addr + data.len()].copy_from_slice(data);
                 Ok(())
             },
-            Err("Device address") => {
-                // 不允许对设备进行批量写入
-                Err("Cannot write bytes to device address")
-            },
-            Err(e) => Err(e),
+            Err(e) => {
+                println!("Address translation failed: {}", e);
+                Err(e)
+            }
         }
     }
 

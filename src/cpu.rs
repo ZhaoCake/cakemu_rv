@@ -15,11 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::debugger::Debugger;
+use crate::debugger::{Debugger, DebugConfig};
 use crate::inst::{decode_instruction, BranchOp, NextPc, Operation, RegOp, SystemCallType};
 use crate::loader::Loader;
-use crate::memory::Memory;
+use crate::memory::{Memory, MemoryConfig, CODE_BASE};
 use crate::register::RegisterFile;
+use crate::devices::DeviceConfig;
+
+pub struct CpuConfig {
+    pub memory: MemoryConfig,
+    pub devices: DeviceConfig,
+    pub debug: DebugConfig,
+}
 
 pub struct Cpu {
     registers: RegisterFile,
@@ -29,12 +36,12 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(memory_size: usize) -> Self {
+    pub fn new(config: CpuConfig) -> Self {
         Self {
             registers: RegisterFile::new(),
-            pc: 0x80000000,  // init pc=0x80000000
-            memory: Memory::new(memory_size),
-            debugger: Debugger::new(),
+            pc: CODE_BASE as u32,
+            memory: Memory::new(config.devices),
+            debugger: Debugger::new_with_config(config.debug),
         }
     }
 

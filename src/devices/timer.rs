@@ -47,6 +47,31 @@ impl Timer {
         }
     }
 
+    pub fn new_with_config(auto_reload: bool, interrupt_enabled: bool) -> Self {
+        let mut control = CONTROL_ENABLE;
+        if auto_reload {
+            control |= CONTROL_RELOAD;
+        }
+        if interrupt_enabled {
+            control |= CONTROL_INTERRUPT;
+        }
+        Self {
+            count: 0,
+            control,
+            compare: 1000,
+            status: 0,
+        }
+    }
+
+    pub fn new_disabled() -> Self {
+        Self {
+            count: 0,
+            control: 0,
+            compare: 0,
+            status: 0,
+        }
+    }
+
     pub fn read(&self, offset: usize, size: usize) -> Result<u32, &'static str> {
         if size != 4 {
             return Err("Timer only supports word access");

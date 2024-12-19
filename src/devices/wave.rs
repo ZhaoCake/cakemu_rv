@@ -57,6 +57,30 @@ impl Wave {
         }
     }
 
+    pub fn new_with_config(output_file: &str, sample_rate: u32) -> Self {
+        Self {
+            control: 0,
+            frequency: sample_rate,
+            amplitude: 255,
+            phase: 0,
+            duty: 50,
+            sample_count: 0,
+            output_file: Some(File::create(output_file).unwrap_or_else(|_| panic!("Failed to create {}", output_file))),
+        }
+    }
+
+    pub fn new_disabled() -> Self {
+        Self {
+            control: 0,
+            frequency: 0,
+            amplitude: 0,
+            phase: 0,
+            duty: 0,
+            sample_count: 0,
+            output_file: None,
+        }
+    }
+
     fn get_wave_type(&self) -> WaveType {
         match (self.control >> 1) & 0x7 {
             0 => WaveType::Sine,

@@ -20,38 +20,24 @@ OUTPUT_FORMAT("elf32-littleriscv")
 ENTRY(_start)
 
 SECTIONS {
-    . = 0x80000000;
+    . = 0x0;
     
     .text : {
-        *(.text.init)    /* 启动代码放在最前面 */
-        *(.text)         /* 其他代码 */
-        *(.text.*)       /* 其他代码段 */
-        *(.rodata)       /* 只读数据 */
-        *(.rodata.*)     /* 其他只读数据段 */
-        . = ALIGN(4);
+        *(.text.init)
+        *(.text)
     }
-
+    
+    .rodata : {
+        *(.rodata)
+    }
+    
     .data : {
-        . = ALIGN(4);
         *(.data)
-        *(.data.*)
         *(.sdata)
-        *(.sdata.*)
-        . = ALIGN(4);
     }
-
+    
     .bss : {
-        . = ALIGN(4);
         *(.bss)
-        *(.bss.*)
-        *(COMMON)
-        . = ALIGN(4);
-    }
-
-    /* 删除所有其他不需要的段 */
-    /DISCARD/ : {
-        *(.eh_frame)
-        *(.note.gnu.build-id)
-        *(.comment)
+        *(.sbss)
     }
 }

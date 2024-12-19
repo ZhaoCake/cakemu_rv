@@ -15,133 +15,130 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "include/uart.h"
-#include "include/timer.h"
-#include "include/wave.h"
+#include <stdint.h>
+#include "uart.h"
+#include "timer.h"
+#include "wave.h"
+#include "display.h"
 
-// UART 测试函数
-void test_uart() {
-    uart_puts("\n=== UART Test ===\n");
-    uart_puts("Testing individual characters: ");
-    uart_putc('H');
-    uart_putc('e');
-    uart_putc('l');
-    uart_putc('l');
-    uart_putc('o');
-    uart_putc('\n');
-    
-    uart_puts("Testing string output: Hello, World!\n");
-    uart_puts("UART test completed.\n");
+// 测试 UART 输出
+void test_uart(void) {
+    uart_puts("Hello from RISC-V!\n");
+    uart_puts("Testing UART output...\n");
+    for (char c = '0'; c <= '9'; c++) {
+        uart_putc(c);
+    }
+    uart_puts("\n");
 }
 
-// Timer 测试函数
-void test_timer(uint32_t cycles) {
-    uart_puts("\n=== Timer Test ===\n");
-    uart_puts("Initializing timer...\n");
+// 测试定时器
+void test_timer(void) {
+    uart_puts("Testing Timer...\n");
     
-    // 初始化定时器
-    timer_init(cycles);
+    // 初始化定时器，设置比较值为1000
+    timer_init(1000);
+    
+    // 启用定时器（包含中断和自动重载功能）
     timer_enable();
-    uart_puts("Timer started with ");
     
-    // 等待定时器完成
-    uart_puts("Waiting for timer...\n");
-    while (!(timer_get_status() & TIMER_MATCH)) {
-        asm volatile("nop");
-    }
-    uart_puts("Timer matched!\n");
-    
-    // 清除定时器状态
+    // 清除任何待处理的状态
     timer_clear_status();
-    timer_disable();
-    uart_puts("Timer cleared and disabled.\n");
+    
+    uart_puts("Timer configured and started\n");
+    uart_puts("- Compare value: 1000\n");
+    uart_puts("- Auto-reload: enabled\n");
+    uart_puts("- Interrupt: enabled\n");
+    
+    // 等待并显示几次中断
+    for(int i = 0; i < 3; i++) {
+        while(!timer_get_status()) { }  // 等待中断
+        uart_puts("Timer interrupt triggered!\n");
+        timer_clear_status();
+    }
 }
 
-// 波形发生器测试函数
-void test_wave() {
-    uart_puts("\n=== Wave Generator Test ===\n");
+// 测试波形生成器
+void test_wave(void) {
+    uart_puts("Testing Wave Generator...\n");
     
-    // 初始化波形发生器
-    uart_puts("Initializing wave generator...\n");
-    wave_init();
+    // 设置正弦波
+    wave_set_type(0);  // 假设0是正弦波类型
+    wave_set_frequency(1000);  // 1kHz
+    wave_set_amplitude(100);   // 振幅
+    wave_set_phase(0);        // 初始相位
+    wave_set_duty(50);        // 占空比（对方波有效）
     
-    // 测试正弦波
-    uart_puts("Testing Sine Wave...\n");
-    wave_set_type(WAVE_TYPE_SINE);
-    wave_set_frequency(100);  // 1kHz
-    wave_set_amplitude(255);   // 最大幅度
-    wave_set_phase(0);        // 0度相位
-    wave_enable();
-    
-    // 等待一段时间
-    timer_init(100);
-    timer_enable();
-    while (!(timer_get_status() & TIMER_MATCH)) {
-        asm volatile("nop");
-    }
-    timer_clear_status();
-    
-    // 测试方波
-    uart_puts("Testing Square Wave...\n");
-    wave_set_type(WAVE_TYPE_SQUARE);
-    wave_set_duty(75);  // 75% 占空比
-    
-    // 等待一段时间
-    timer_init(20);
-    timer_enable();
-    while (!(timer_get_status() & TIMER_MATCH)) {
-        asm volatile("nop");
-    }
-    timer_clear_status();
-    
-    // 测试三角波
-    uart_puts("Testing Triangle Wave...\n");
-    wave_set_type(WAVE_TYPE_TRIANGLE);
-    
-    // 等待一段时间
-    timer_init(100);
-    timer_enable();
-    while (!(timer_get_status() & TIMER_MATCH)) {
-        asm volatile("nop");
-    }
-    timer_clear_status();
-    
-    // 测试锯齿波
-    uart_puts("Testing Sawtooth Wave...\n");
-    wave_set_type(WAVE_TYPE_SAWTOOTH);
-    
-    // 等待一段时间
-    timer_init(100);
-    timer_enable();
-    while (!(timer_get_status() & TIMER_MATCH)) {
-        asm volatile("nop");
-    }
-    timer_clear_status();
-    
-    // 禁用波形发生器
-    wave_disable();
-    uart_puts("Wave generator test completed.\n");
+    uart_puts("Wave generator configured:\n");
+    uart_puts("- Type: Sine wave\n");
+    uart_puts("- Frequency: 1kHz\n");
+    uart_puts("- Amplitude: 100\n");
+    uart_puts("- Phase: 0\n");
+    uart_puts("- Duty: 50%\n");
 }
 
-// 主函数
+// 测试显示器绘图功能
+void test_display(void) {
+    uart_puts("Testing Display...\n");
+    display_clear(COLOR_BLACK);
+
+    // 绘制边框
+    display_draw_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, COLOR_WHITE);
+
+    // 绘制对角线
+    display_draw_line(0, 0, DISPLAY_WIDTH-1, DISPLAY_HEIGHT-1, COLOR_RED);
+    display_draw_line(DISPLAY_WIDTH-1, 0, 0, DISPLAY_HEIGHT-1, COLOR_BLUE);
+
+    // 绘制彩色方块
+    uint32_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW, 
+                        COLOR_CYAN, COLOR_MAGENTA, COLOR_WHITE};
+    int block_width = 40;
+    int block_height = 40;
+    int spacing = 10;
+    int start_x = 50;
+    int start_y = 50;
+
+    for (int i = 0; i < 7; i++) {
+        display_fill_rect(start_x + i * (block_width + spacing),
+                         start_y,
+                         block_width,
+                         block_height,
+                         colors[i]);
+    }
+
+    // 绘制同心矩形
+    int center_x = DISPLAY_WIDTH / 2;
+    int center_y = DISPLAY_HEIGHT / 2;
+    for (int i = 0; i < 5; i++) {
+        int size = 40 + i * 30;
+        display_draw_rect(center_x - size/2,
+                         center_y - size/2,
+                         size,
+                         size,
+                         colors[i % 7]);
+    }
+
+    // 更新显示
+    display_update();
+    uart_puts("Display test complete!\n");
+}
+
 int main() {
-    uart_puts("Comprehensive Peripheral Test Program\n");
-    uart_puts("===================================\n");
+    // 初始化设备
+    timer_init(1000);
+    wave_init();
+    display_init();
     
-    // UART 测试
+    uart_puts("Starting peripheral tests...\n");
+    
     test_uart();
-    
-    // Timer 测试
-    test_timer(1000);  // 短延时测试
-    test_timer(5000);  // 长延时测试
-    
-    // 波形发生器测试
+    test_timer();
     test_wave();
+    test_display();
     
-    uart_puts("\nAll tests completed successfully!\n");
-    uart_puts("You can now use tools/plot_wave.py to view the generated waveforms.\n");
-    
-    // 使用 ebreak 结束程序
-    asm volatile("ebreak");
+    uart_puts("All tests complete!\n");
+
+    while(1) {
+        // 保持程序运行以保持显示和其他功能
+    }
     return 0;
 }

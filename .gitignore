@@ -1,5 +1,42 @@
-/target
-/reference
+# Rust 编译输出
+/target/
+**/*.rs.bk
 Cargo.lock
-program.bin
-wave.txt
+
+# IDE 和编辑器文件
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 构建输出
+c_sim/build/
+*.o
+*.bin
+*.elf
+*.hex
+
+# 波形和显示输出
+*.dat
+*.wav
+*.png
+*.jpg
+*.txt
+
+# 调试文件
+*.pdb
+*.dSYM/
+
+# 系统文件
+.directory
+.Trash-*
+*~
+
+# 环境文件
+.env
+.env.local
+
+config.toml
+!configs/config.toml
+!tools/*.*

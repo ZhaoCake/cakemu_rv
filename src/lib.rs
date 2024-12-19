@@ -15,11 +15,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+pub mod config;
 pub mod cpu;
-pub mod memory;
-pub mod loader;
-pub mod tools;
 pub mod debugger;
-pub mod inst;
-pub mod register;
 pub mod devices;
+pub mod inst;
+pub mod loader;
+pub mod memory;
+pub mod register;
+pub mod tools;

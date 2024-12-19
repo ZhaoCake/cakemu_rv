@@ -37,8 +37,8 @@ impl Loader {
             buffer.get(2).unwrap_or(&0),
             buffer.get(3).unwrap_or(&0));
         
-        // 从 0x80000000 开始加载程序
-        println!("Attempting to load program at 0x80000000");
+        // 从代码段基地址开始加载程序
+        println!("Attempting to load program at 0x80000000");     
         match memory.write_bytes(0x80000000, &buffer) {
             Ok(_) => println!("Program loaded successfully"),
             Err(e) => {
@@ -51,7 +51,6 @@ impl Loader {
     }
 
     pub fn get_entry_point(&self) -> u32 {
-        // 程序入口点固定为 0x80000000
-        0x80000000
+        0x80000000  // 程序入口点从 0x80000000 开始
     }
 } 

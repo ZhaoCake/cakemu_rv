@@ -17,6 +17,15 @@
 
 use std::collections::VecDeque;
 
+#[derive(Debug)]
+pub struct DebugConfig {
+    pub instruction_trace: bool,
+    pub memory_trace: bool,
+    pub register_trace: bool,
+    pub single_step: bool,
+    pub trace_limit: usize,
+}
+
 pub struct Debugger {
     pub itrace_enabled: bool,
     pub mtrace_enabled: bool,
@@ -37,6 +46,18 @@ impl Debugger {
             instruction_trace: VecDeque::with_capacity(16),
             memory_trace: VecDeque::with_capacity(16),
             trace_limit: 16,
+        }
+    }
+
+    pub fn new_with_config(config: DebugConfig) -> Self {
+        Self {
+            itrace_enabled: config.instruction_trace,
+            mtrace_enabled: config.memory_trace,
+            regtrace_enabled: config.register_trace,
+            single_step: config.single_step,
+            instruction_trace: VecDeque::with_capacity(config.trace_limit),
+            memory_trace: VecDeque::with_capacity(config.trace_limit),
+            trace_limit: config.trace_limit,
         }
     }
 

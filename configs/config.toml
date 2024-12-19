@@ -1,0 +1,35 @@
+# CakeMu-RV 配置文件
+
+[program]
+binary = "c_sim/build/program.bin"
+
+[memory]  
+size = 0x03000000
+
+[debug]
+instruction_trace = false
+memory_trace = false
+register_trace = false
+single_step = false
+trace_limit = 16
+
+[uart]
+enabled = true
+base_addr = 0x2000000
+
+[timer]
+enabled = true
+base_addr = 0x2000100
+auto_reload = true
+interrupt_enabled = true
+
+[wave]
+enabled = true
+base_addr = 0x2000200
+output_file = "wave.dat"
+sample_rate = 44100
+
+[display]
+enabled = true
+base_addr = 0x2000300
+title = "RISC-V Display" 

@@ -16,68 +16,64 @@
  */
 
 use std::env;
-use riscv_emu::cpu;
+use riscv_emu::{cpu, memory, devices, debugger, config};
 
 fn print_usage(program: &str) {
-    eprintln!("Usage: {} <program-file> [options]", program);
-    eprintln!("Options:");
-    eprintln!("  --no-itrace    Disable instruction trace");
-    eprintln!("  --no-mtrace    Disable memory trace");
-    eprintln!("  --no-regtrace  Disable register trace");
-    eprintln!("  --step         Enable single-step execution");
+    eprintln!("Usage: {} <config-file>", program);
+    eprintln!("Example: {} config.toml", program);
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
+    if args.len() != 2 {
         print_usage(&args[0]);
         std::process::exit(1);
     }
 
-    let program_file = &args[1];
-
-    // 创建 CPU 实例，分配足够的内存
-    // 代码段：0x00000000-0x0FFFFFFF (256MB)
-    // 数据段：0x01000000-0x01FFFFFF (16MB)
-    // 外设段：0x02000000-0x02FFFFFF (16MB)
-    let memory_size = 0x03000000;  // 48MB total
-    let mut cpu = cpu::Cpu::new(memory_size);
-
-    // 默认启用所有跟踪
-    let mut enable_itrace = true;
-    let mut enable_mtrace = true;
-    let mut enable_regtrace = true;
-    let mut enable_step = false;
-
-    // 处理命令行选项
-    for arg in &args[2..] {
-        match arg.as_str() {
-            "--no-itrace" => enable_itrace = false,
-            "--no-mtrace" => enable_mtrace = false,
-            "--no-regtrace" => enable_regtrace = false,
-            "--step" => enable_step = true,
-            _ => {
-                eprintln!("Unknown option: {}", arg);
-                print_usage(&args[0]);
-                std::process::exit(1);
-            }
-        }
-    }
-
-    // 设置调试选项
-    cpu.set_itrace(enable_itrace);
-    cpu.set_mtrace(enable_mtrace);
-    cpu.set_regtrace(enable_regtrace);
-    cpu.set_single_step(enable_step);
+    // 读取并解析配置文件
+    let config = config::Config::from_file(&args[1])?;
 
     println!("RISC-V Emulator Starting...");
-    println!("Loading program: {}", program_file);
+    println!("Loading configuration from: {}", args[1]);
+
+    // 创建 CPU 配置
+    let cpu_config = cpu::CpuConfig {
+        memory: memory::MemoryConfig {
+            size: memory::MEMORY_SIZE,
+        },
+        devices: devices::DeviceConfig {
+            uart_enabled: config.uart.enabled,
+            uart_base: config.uart.base_addr,
+            timer_enabled: config.timer.enabled,
+            timer_base: config.timer.base_addr,
+            timer_auto_reload: config.timer.auto_reload,
+            timer_interrupt: config.timer.interrupt_enabled,
+            wave_enabled: config.wave.enabled,
+            wave_base: config.wave.base_addr,
+            wave_output: config.wave.output_file,
+            wave_sample_rate: config.wave.sample_rate,
+            display_enabled: config.display.enabled,
+            display_base: config.display.base_addr,
+            display_title: config.display.title,
+        },
+        debug: debugger::DebugConfig {
+            instruction_trace: config.debug.instruction_trace,
+            memory_trace: config.debug.memory_trace,
+            register_trace: config.debug.register_trace,
+            single_step: config.debug.single_step,
+            trace_limit: config.debug.trace_limit,
+        },
+    };
+
+    // 创建 CPU 实例
+    let mut cpu = cpu::Cpu::new(cpu_config);
 
     // 加载程序
-    cpu.load_program(program_file)?;
+    println!("Loading program: {}", config.program.binary);
+    cpu.load_program(&config.program.binary)?;
 
-    // 显示初始寄存器状态（如果启用）
-    if enable_regtrace {
+    // 显示初始寄存器状态
+    if config.debug.register_trace {
         cpu.show_registers();
     }
 
@@ -85,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         match cpu.step() {
             Ok(()) => {
-                if enable_regtrace {
+                if config.debug.register_trace {
                     cpu.show_registers();
                 }
             }
